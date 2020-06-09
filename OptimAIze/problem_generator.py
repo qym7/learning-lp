@@ -6,8 +6,8 @@
 # For more information see its description at the end of the code
 
 import numpy as np
-from package_name.dataset import dataset
-from package_name.problem_selector import Selector, extract
+from optimAIze.dataset import dataset
+from optimAIze.problem_selector import Selector, extract
 
 # lin_opt_pbs is a class representing linear optimization problems.
 # It will be used to generate new linear optimization problems
