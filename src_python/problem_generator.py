@@ -6,8 +6,9 @@
 # For more information see its description at the end of the code
 
 import numpy as np
-from dataset import dataset
+
 from problem_selector import extract
+
 
 # lin_opt_pbs is a class representing linear optimization problems.
 # It will be used to generate new linear optimization problems
@@ -22,7 +23,6 @@ from problem_selector import extract
 #           dev : a float setting the relative deviation of the variables when generating new problems
 #           non_fixed_vars : a list containing all indices of the variables which will be affected by the noise
 #               when generating new problems. If not given by the user, it is determined by the program.
-
 
 
 class lin_opt_pbs:
@@ -68,15 +68,15 @@ class lin_opt_pbs:
     # Output: a list of solutions (float list)
 
     def calculate_solutions(self):
-        new_list = []
         nb_pb = len(self.generated_problems)
+        new_list = nb_pb * [None]
         for pb in range(nb_pb):
             if pb > 0 and pb % 100 == 0:
                 print(pb)
             RHS = self.generated_problems[pb]
             self.problem.linear_constraints.set_rhs(RHS)
             self.problem.solve()
-            new_list.append(self.problem.solution.get_objective_value())
+            new_list[nb_pb] = self.problem.solution.get_objective_value()
         return new_list
 
     # The method extract_RHS transforms a list of RHS
@@ -118,6 +118,7 @@ class lin_opt_pbs:
             new_list.append((ind, new_val))
         self.generated_problems.append(new_list)
 
+
 # The function problem_generator generates an instance of dataset
 # with N random RHS based on a chosen linear optimization problem
 # and their N associated solutions
@@ -148,8 +149,9 @@ def problem_generator(prob_list, N, dev):
 
     rhs_list = prob_root.extract_RHS()
     sol_list = prob_root.calculate_solutions()
-    data = dataset(rhs_list, sol_list)  # write either dataset or dataset.dataset to create a new instance
-    return data
+
+    return rhs_list, sol_list
+
 
 # The function problem_generator_y is an adapted version of problem_generator
 # which can be used as callback function while training a neural network
@@ -174,19 +176,22 @@ def problem_generator_y(prob_list, N, dev):
 
         rhs_list = prob_root.extract_RHS()
         sol_list = prob_root.calculate_solutions()
-        data = dataset(rhs_list, sol_list)
-        yield data.get_RHS(), data.get_solutions()
+
+        yield rhs_list, sol_list
 
 
-# Testing the problem_generator function
+if __name__ == '__main__':
+    # Testing the problem_generator function
 
-problem_file = 'petit_probleme.lp'
-N = 100000
-dev = 0.1
+    problem_file = 'petit_probleme.lp'
+    N = 100000
+    dev = 0.1
 
-data = problem_generator(problem_file, N, dev)
-print(data.get_RHS())
-print(data.get_solutions())
+    rhs, sol = problem_generator(problem_file, N, dev)
 
+    # with open('petit_probleme.csv', 'w') as csv_file:
+    #     for v in sol:
+    #         csv_file.write('{};'.format(v))
+    #     csv_file.write('\n')
 
 
