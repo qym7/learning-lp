@@ -1,4 +1,4 @@
-![logo RTE](https://webmail.polytechnique.fr/service/home/~/?auth=co&loc=fr_FR&id=7045&part=2)
+
 # Apport des réseaux de neurones à la résolution approchée de problèmes d’optimisation linéaire
 
 ---
