@@ -6,8 +6,8 @@
 # For more information see its description at the end of the code
 
 import numpy as np
-from OptimAIze.dataset import dataset
-from OptimAIze.problem_selector import Selector, extract
+from dataset import dataset
+from problem_selector import extract
 
 # lin_opt_pbs is a class representing linear optimization problems.
 # It will be used to generate new linear optimization problems
@@ -22,6 +22,8 @@ from OptimAIze.problem_selector import Selector, extract
 #           dev : a float setting the relative deviation of the variables when generating new problems
 #           non_fixed_vars : a list containing all indices of the variables which will be affected by the noise
 #               when generating new problems. If not given by the user, it is determined by the program.
+
+
 
 class lin_opt_pbs:
     def __init__(self, problem, RHS_list, non_fixed_vars):
