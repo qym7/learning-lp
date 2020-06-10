@@ -1,16 +1,17 @@
-# The objective of the class dataset is to manipulate RHSs and their associated solutions
-# in order to make them exploitable by a neural network.
-
+"""
+The objective of the class dataset is to manipulate sets of RHS of linear optimisation problems
+and their associated solutions (objective values) in order to make them exploitable
+by a neural network.
+"""
 
 import pickle
-
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 
 class RHS:  # contains a set of second members
-    def __init__(self, data):  # data can be a file name or an istance of np.array with the solutions
+    def __init__(self, data):  # data can be a file name or an instance of np.array with the solutions
         if isinstance(data, np.matrix) or isinstance(data, np.ndarray):  # if it's a matrix
             self.content = data  # then we get it
         elif isinstance(data, list):
