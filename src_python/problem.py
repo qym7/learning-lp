@@ -3,6 +3,7 @@ Interface for linear optimisation problems as needed in problem_generator and
 problem_selector. The default implementation of the interface is Cplex_problem.
 """
 
+
 class Problem:
 
     def read(self, filename):
