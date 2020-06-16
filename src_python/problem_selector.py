@@ -1,5 +1,6 @@
 import pickle
-from problem import Problem, Problem_factory, Cplex_Problem_Factory
+from problem_interface import Problem, Problem_factory
+from problem import Cplex_Problem_Factory
 
 
 class Selector:
@@ -10,16 +11,25 @@ class Selector:
 
     Attributes
     ----------
-    prob_list :
-        a list of linear optimization problems. Should be either a single file name (string),
-        a list of file-names (string list) or a list of objects of the class cplex.Cplex (cplex.Cplex list)
+    prob_list : string list
+        a list of linear optimization problems. Should be a list of file-names (string list).
     content :
         the content of prob_list in the format required by the class lin_opt_pbs in problem_generator.py.
+    cons_to_vary : string list
+        a list of names of the constraints of the linear optimisation problems that should be affected when
+        generating new problems. (All linear optimisation problems in prob_list should have an equal
+        amount of constraints with equal names and in the same order.)
+    vars_to_vary : string list
+        a list of names of the variables of the linear optimisation problems that should be fixed randomly
+        when generating new problems. (All linear optimisation problems in prob_list should have an equal
+        amount of variables with equal names and in the same order.)
     """
-    def __init__(self, prob_list, factory: Problem_factory = Cplex_Problem_Factory()):
+    def __init__(self, prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory()):
         self.prob_list = prob_list
         self.factory = factory
         self.content = None
+        self.cons_to_vary = cons_to_vary
+        self.vars_to_vary = vars_to_vary
 
     def get_prob_list(self):
         return self.prob_list
@@ -30,8 +40,8 @@ class Selector:
     def get_content(self):
         return self.content
 
-    def set_content(self, problem, RHS_list, non_fixed_vars, name_list):
-        self.content = problem, RHS_list, non_fixed_vars, name_list
+    def set_content(self, problem, RHS_list, cons_to_vary, vars_to_vary, name_list):
+        self.content = problem, RHS_list, cons_to_vary, vars_to_vary, name_list
 
     def give_names(self):
         n = len(self.prob_list)
@@ -45,19 +55,20 @@ class Selector:
         The method fill_content converts the content of the linear optimization problems in
         self.prob_list to the format required by the class lin_opt_pbs ans saves it in self.content.
 
-        More precisely the method checks first of all if the content of prob_list is either a string,
-        a string list, or a cplex.Cplex list. If that is not the case, an error message will occur. If
-        the content of prob_list has one of the types listed above, but cannot be read by the method
-        (if prob_list contains a list of file names, but some of those files do not contain linear
-        optimization problems for example) an exception will be raised.
+        More precisely the method checks first of all if the content of prob_list is a string list.
+        If that is not the case, an error message will occur. If the content of prob_list is a string
+        list, but cannot be read by the method (if prob_list contains a list of file names, but some
+        of those files do not contain linear optimization problems for example) an exception will be raised.
 
         If no exception occurs, the content of prob_list will be converted into a tuple
         containing:
-           - one complete linear optimization problem (cplex.Cplex instance),
+           - one complete linear optimization problem (see class Problem in problem_interface.py),
            - the list of RHS of all problems given in the format required by
              Cplex (list of list of tuples (int, float)),
            - the indices of the coefficients of the RHS that should be affected
              when generating new problems (int list)
+           - the indices of the variables that should be fixed randomly while
+             when generating new problems
            - the list of names of the problems saved in prob_list (string list)
 
         This tuple is saved in self.content
@@ -70,63 +81,67 @@ class Selector:
         --------
         No output
         """
-        if isinstance(self.prob_list, str):  # if prob_list contains a single file name
-            try:
-                file_content = pickle.load(open(self.prob_list, "rb"))
-                if issubclass(file_content[0], Problem):
-                    problem = file_content[0]
-                    RHS_list = file_content[1]
-                    non_fixed_vars = file_content[2]
-                    name_list = file_content[3]
-                else:
-                    raise Exception("File does not contain linear optimization problems")
-            except pickle.UnpicklingError:
-                problem = self.factory.read_problem_from_file(self.prob_list)
-                non_fixed_vars = read_non_fixed_vars(problem)
-                constraints = problem.get_RHS()
-                rhs = format_RHS(constraints, non_fixed_vars)
-                RHS_list = [rhs]
-                name_list = self.prob_list
-
-        elif isinstance(self.prob_list[0], str):  # checking if prob_list contains a list of files
+        assert isinstance(self.prob_list[0], str), "Files do not contain linear optimisation problems."
+        try:
             problem = self.factory.read_problem_from_file(self.prob_list[0])
-            non_fixed_vars = read_non_fixed_vars(problem)
+            cons_to_vary = self.read_cons_to_vary(problem)
+            vars_to_vary = self.read_vars_to_vary(problem)
             nb = len(self.prob_list)
             RHS_list = nb * [None]
             name_list = self.prob_list
             for i in range(nb):
                 problem.read(self.prob_list[i])
                 constraints = problem.get_RHS()
-                rhs = format_RHS(constraints, non_fixed_vars)
+                rhs = format_RHS(constraints, cons_to_vary)
                 RHS_list[i] = rhs
-        else:  # checking finally if prob_list contains a cplex.Cplex list, throws error message otherwise
-            assert issubclass(self.prob_list[0], Problem), "This file does not contain " \
-                                                         "linear optimisation problems."
-            problem = self.prob_list[0]
-            non_fixed_vars = read_non_fixed_vars(problem)
-            nb = len(self.prob_list)
-            RHS_list = nb * [None]
-            name_list = self.give_names()
-            for i in range(nb):
-                constraints = self.prob_list[i].get_RHS()
-                rhs = format_RHS(constraints, non_fixed_vars)
-                RHS_list[i] = rhs
+        except:
+            raise Exception("Files do not contain linear optimisation problems.")
 
-        self.set_content(problem, RHS_list, non_fixed_vars, name_list)
+        self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, name_list)
+
+    def read_cons_to_vary(self, problem):
+        var_names = problem.get_constraint_names()
+        nb_vars = len(var_names)
+
+        if self.cons_to_vary is None:
+            cons_to_vary = []
+            for i in range(nb_vars):
+                this_name = var_names[i]
+                if this_name.startswith("demand"):
+                    cons_to_vary.append(i)
+        else:
+            nb = len(self.cons_to_vary)
+            counter = 0
+            cons_to_vary = nb * [None]
+            for i in range(nb_vars):
+                if counter < nb and var_names[i] == self.cons_to_vary[counter]:
+                    cons_to_vary[counter] = i
+                    counter += 1
+            if cons_to_vary[-1] is None:
+                raise Exception("Either the optimisation problems have no constraints with some of that names or "
+                                "the constraint names were given in the wrong order.")
+        return cons_to_vary
+
+    def read_vars_to_vary(self, problem):
+        var_names = problem.get_variable_names()
+        nb_vars = len(var_names)
+        if self.vars_to_vary is None:
+            return None
+        else:
+            nb = len(self.vars_to_vary)
+            counter = 0
+            vars_to_vary = nb * [None]
+            for i in range(nb_vars):
+                if counter < nb and var_names[i] == self.vars_to_vary[counter]:
+                    vars_to_vary[counter] = i
+                    counter += 1
+            if vars_to_vary[-1] is None:
+                raise Exception("Either the optimisation problems have no variables with some of that names or "
+                                "the variable names were given in the wrong order.")
+        return vars_to_vary
 
 
-def read_non_fixed_vars(problem):
-    constraint_names = problem.get_constraint_names()
-    non_fixed_vars = []
-    for i in range(len(constraint_names)):
-        this_name = constraint_names[i]
-        if this_name.startswith("demand"):
-            non_fixed_vars.append(i)
-#    print("non fixed vars ", non_fixed_vars)
-    return non_fixed_vars
-
-
-def extract(prob_list, factory: Problem_factory = Cplex_Problem_Factory()):
+def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory()):
     """
     The function extract converts the content of a list of problems given as an argument to
     the format required by the class lin_opt_pbs in problem_generator.py and returns the result.
@@ -135,27 +150,35 @@ def extract(prob_list, factory: Problem_factory = Cplex_Problem_Factory()):
 
     Arguments
     ---------
-    prob_list :
-        a list of linear optimization problems. Should be either a single file name (string),
-        a list of file-names (string list) or a list of objects of the class cplex.Cplex (cplex.Cplex list)
+    prob_list : string list
+        a list of linear optimization problems. Should be a list of file-names.
+    cons_to_vary : string list
+        a list of names of the constraints of the linear optimisation problems that should be affected when
+        generating new problems. (All linear optimisation problems in prob_list should have an equal
+        amount of constraints with equal names and in the same order.)
+    vars_to_vary : string list
+        a list of names of the variables of the linear optimisation problems that should be fixed randomly
+        when generating new problems. (All linear optimisation problems in prob_list should have an equal
+        amount of variables with equal names and in the same order.)
+    factory : Problem_factory instance (see in problem_interface.py)
 
     returns
     -------
     content :
         the content of prob_list in the format required by the class lin_opt_pbs in problem_generator.py.
     """
-    selector = Selector(prob_list, factory)
+    selector = Selector(prob_list, cons_to_vary, vars_to_vary, factory)
     selector.fill_content()
     content = selector.get_content()
     return content
 
 
-def format_RHS(constraints, non_fixed_vars):
+def format_RHS(constraints, cons_to_vary):
     """Creating an RHS in the format required by the class lin_opt_pbs out of a list of constraints."""
-    nb = len(non_fixed_vars)
+    nb = len(cons_to_vary)
     rhs = nb * [None]
     for i in range(nb):
-        rhs[i] = (non_fixed_vars[i], constraints[non_fixed_vars[i]])
+        rhs[i] = (cons_to_vary[i], constraints[cons_to_vary[i]])
     return rhs
 
 

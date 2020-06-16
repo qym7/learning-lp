@@ -7,9 +7,11 @@ The name of this function is "problem_generator".
 For more information see its description of problem_generator.
 """
 
+import sys
 import numpy as np
 from problem_selector import extract
 from problem import Problem, Problem_factory, Cplex_Problem_Factory
+from dataset import dataset, load_csv
 
 
 class lin_opt_pbs:
@@ -20,26 +22,30 @@ class lin_opt_pbs:
 
     Attributes
     ----------
-    problem : cplex.Cplex
+    problem : Problem instance (see problem_interface.py)
         a linear optimisation problem
     RHS_list : (int, float) list list
         a list of RHS in the format used by cplex.
         The first elements of the tuples represent indices of constraints, so they should
         all be different and never exceed the number of constraints of self.problem.
-    generated_problems : (int, float) list list
-        a list of newly created RHS in the format used by cplex.
+    generated_RHS : ((int, float) list, (int, float) list) list
+        a list of newly created RHS in a particular format.
     dev : float
         giving the relative deviation of the noise when generating new problems.
-    non_fixed_vars : int list
-        a list containing all indices of the variables which will be affected by the noise
-        when generating new problems. If not given by the user, it is determined by the program.
+    cons_to_vary : int list
+        a list of indices of the constraints of the linear optimisation problems that should be affected
+        by the noise when generating new problems.
+    vars_to_vary : int list
+        a list of indices of the variables of the linear optimisation problems that should be fixed randomly
+        when generating new problems.
     """
-    def __init__(self, problem: Problem, RHS_list, non_fixed_vars):
+    def __init__(self, problem: Problem, RHS_list, cons_to_vary=None, vars_to_vary=None):
         self.problem = problem
         self.RHS_list = RHS_list
-        self.generated_problems = []
+        self.generated_RHS = []
         self.dev = 0
-        self.non_fixed_vars = non_fixed_vars
+        self.cons_to_vary = cons_to_vary
+        self.vars_to_vary = vars_to_vary
 
     def set_problem(self, problem):
         self.problem = problem
@@ -59,14 +65,14 @@ class lin_opt_pbs:
     def get_deviation(self):
         return self.dev
 
-    def set_non_fixed_vars(self, non_fixed_vars):
-        self.non_fixed_vars = non_fixed_vars
+    def set_cons_to_vary(self, cons_to_vary):
+        self.cons_to_vary = cons_to_vary
 
-    def get_non_fixed_vars(self):
-        return self.non_fixed_vars
+    def get_cons_to_vary(self):
+        return self.cons_to_vary
 
-    def clear_generated_problems(self):
-        self.generated_problems = []
+    def clear_generated_RHS(self):
+        self.generated_RHS = []
 
     def calculate_solutions(self):
         """
@@ -81,18 +87,19 @@ class lin_opt_pbs:
         ------
         a list of solutions : float list
         """
-        nb_pb = len(self.generated_problems)
-        new_list = nb_pb * [None]
+        nb_pb = len(self.generated_RHS)
+        solutions = nb_pb * [None]
         counter = 1
         for pb in range(nb_pb):
             if pb == counter:
                 print(pb)
                 counter = 2*counter
-            RHS = self.generated_problems[pb]
-            self.problem.set_RHS(RHS)
+            RHS = self.generated_RHS[pb]
+            self.problem.set_RHS(RHS[0])
+            self.set_vars(RHS[1])
             self.problem.solve()
-            new_list[pb] = self.problem.get_objective_value()
-        return new_list
+            solutions[pb] = self.problem.get_objective_value()
+        return solutions
 
     def extract_RHS(self):
         """
@@ -107,25 +114,34 @@ class lin_opt_pbs:
         ------
         a list of RHS : float list list
         """
-        nb_pb = len(self.generated_problems)
-        nb_con = len(self.generated_problems[0])
-        new_list = nb_pb * [None]
+        nb_pb = len(self.generated_RHS)
+        nb_con = len(self.generated_RHS[0][0])
+        nb_vars = len(self.generated_RHS[0][1])
+        new_rhs = nb_pb * [None]
         for i in range(nb_pb):
-            constraints = self.generated_problems[i]
-            rhs = nb_con * [None]
+            constraints = self.generated_RHS[i][0]
+            variables = self.generated_RHS[i][1]
+            rhs = (nb_vars + nb_con) * [None]
             for j in range(nb_con):
                 rhs[j] = constraints[j][1]
-            new_list[i] = rhs
-        return new_list
+            if nb_vars > 0:
+                for j in range(nb_con):
+                    rhs[j + nb_con] = variables[j][1]
+            new_rhs[i] = rhs
+        return new_rhs
 
-    def generate_random_prob(self, k):
+    def generate_random_RHS(self, k):
         """
         Generates single random new problem.
 
-        More precisely, the method generate_random_prob generates a single new random problem
+        More precisely, the method generate_random_RHS generates a single new random problem
         by adding a gaussian noise to some coefficients of the RHS (= right hand side)
         of a chosen problem in an instance of lin_opt_pbs. The chosen coefficients are
-        given by self.non_fixed_vars
+        given by self.cons_to_vary.
+
+        In addition, the method fixes some given variables of the linear optimisation
+        problem randomly in a given interval. The chose variables are given by
+        self.vars_to_vary.
 
         The standard deviation of that noise in each variable is computed by multiplying the
         value that variable takes by the factor dev.
@@ -142,15 +158,52 @@ class lin_opt_pbs:
         """
         rhs = self.RHS_list[k]
         nb = len(rhs)
-        new_list = nb * [None]
+        new_rhs = nb * [None]
         for i in range(nb):
             val = rhs[i][1]
             new_val = val + (np.random.normal(0, abs(val) * self.dev, 1))[0]  # add gaussian noise to the RHS
-            new_list[i] = (rhs[i][0], new_val)
-        self.generated_problems.append(new_list)
+            new_rhs[i] = (rhs[i][0], new_val)
+        values = self.choose_vars_random()
+        self.generated_RHS.append([new_rhs, values])
+
+    def choose_vars_random(self):
+        """
+        Fixes the variables listed in self.vars_to_fix to random values inside
+        their previous bounds.
+
+        Return
+        ------
+        values : (int, float) list
+            the indices of the fixed variables and their new values.
+        """
+        if self.vars_to_vary is None:
+            return[]
+        else:
+            nb = len(self.vars_to_vary)
+            values = nb * [None]
+            for i in range(nb):
+                lw_bnd, up_bnd = self.problem.var_get_bounds(self.vars_to_vary[i])
+                val = np.random.uniform(lw_bnd, up_bnd)
+                values[i] = (self.vars_to_vary[i], val)
+            return values
+
+    def set_vars(self, values):
+        """
+        Sets the vars to the given values.
+
+        Arguments
+        ---------
+        values : (int, float) list
+            a list of tuples (int, float) where the int represents the index of a
+            variable of the linear optimisation problem and the float the value it
+            should be set to.
+        """
+        nb = len(values)
+        for i in range(nb):
+            self.problem.var_set_bounds(values[i][0], values[i][1], values[i][1])
 
 
-def problem_generator(prob_list, N, dev, factory: Problem_factory = Cplex_Problem_Factory()):
+def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory()):
     """
     The function problem_generator generates an instance of dataset
     with N random RHS, based on a chosen linear optimization problem,
@@ -167,28 +220,38 @@ def problem_generator(prob_list, N, dev, factory: Problem_factory = Cplex_Proble
         giving the number of new problems to generate
     dev : float
         giving the relative deviation of the noise when generating new problems
+    cons_to_vary : string list
+        a list of names of the constraints of the linear optimisation problems that should be affected when
+        generating new problems. (All linear optimisation problems in prob_list should have an equal
+        amount of constraints with equal names and in the same order.)
+    vars_to_vary : string list
+        a list of names of the variables of the linear optimisation problems that should be fixed randomly
+        when generating new problems. (All linear optimisation problems in prob_list should have an equal
+        amount of variables with equal names and in the same order.)
+    factory : Problem_factory instance (see in problem_interface.py)<
 
     Return
     ------
     data : dataset instance
         containing the N generated RHS and their N associated solutions
     """
-    cont = extract(prob_list, factory)
-    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2])
+    cont = extract(prob_list, cons_to_vary, vars_to_vary, factory)
+    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3])
     prob_root.set_deviation(dev)
     K = len(prob_root.RHS_list)
 
     for i in range(N):
         ind = np.random.randint(K)
-        prob_root.generate_random_prob(ind)
+        prob_root.generate_random_RHS(ind)
 
-    rhs_list = prob_root.extract_RHS()
     sol_list = prob_root.calculate_solutions()
+    rhs_list = prob_root.extract_RHS()
+    data = dataset(rhs_list, sol_list)
 
-    return rhs_list, sol_list
+    return data
 
 
-def problem_generator_y(prob_list, N, dev, factory: Problem_factory = Cplex_Problem_Factory()):
+def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory()):
     """
     The function problem_generator_y is an adapted version of problem_generator
     which can be used as callback function while training a neural network
@@ -196,38 +259,37 @@ def problem_generator_y(prob_list, N, dev, factory: Problem_factory = Cplex_Prob
 
     For a more detailed description, see problem_generator.
     """
-    cont = extract(prob_list, factory)
-    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2])
+    cont = extract(prob_list, cons_to_vary, vars_to_vary, factory)
+    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3])
     prob_root.set_deviation(dev)
     K = len(prob_root.RHS_list)
 
     while True:
-        prob_root.clear_generated_problems()
+        prob_root.clear_generated_RHS()
 
         for i in range(N):
             ind = np.random.randint(K)
-            prob_root.generate_random_prob(ind)
+            prob_root.generate_random_RHS(ind)
 
         rhs_list = prob_root.extract_RHS()
         sol_list = prob_root.calculate_solutions()
+        data = dataset(rhs_list, sol_list)
 
-        yield rhs_list, sol_list
+        yield data
 
 
 if __name__ == '__main__':
     # Testing the problem_generator function
 
-    problem_file = 'petit_probleme.lp'
-    N = 10000
-    dev = 0.1
+    prob_list = [sys.argv[1]]
+    Number = 10
+    Deviation = 0.1
 
-    rhs_List, sol_List = problem_generator(problem_file, N, dev)
-    print(rhs_List)
-    print(sol_List)
+    data = problem_generator(prob_list, Number, Deviation, None, None, Cplex_Problem_Factory())
+    print(data.get_solutions())
+    print(data.get_RHS())
+    data.to_csv("test_to_csv")
+    #data1 = load_csv("test_to_csv_RHS", "test_to_csv_sol")
 
-    # with open('petit_probleme.csv', 'w') as csv_file:
-    #     for v in sol:
-    #         csv_file.write('{};'.format(v))
-    #     csv_file.write('\n')
 
 
