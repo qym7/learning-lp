@@ -74,7 +74,7 @@ class Xpress_problem(Problem):
         nb_vars = len(variables)
         name_list = nb_vars * [None]
         for i in range(nb_vars):
-            name_list[i] = variables[i].name
+            name_list[i] = variables[i].name.rstrip(" ")
         return name_list
 
     def solve(self):

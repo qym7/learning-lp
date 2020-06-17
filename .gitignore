@@ -128,3 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 /src_python/.idea
+/data/test_to_csv_sol.csv
+/data/test_to_csv_RHS.csv
