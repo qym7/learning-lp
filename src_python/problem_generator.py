@@ -10,7 +10,9 @@ For more information see its description of problem_generator.
 import sys
 import numpy as np
 from problem_selector import extract
-from problem import Problem, Problem_factory, Cplex_Problem_Factory
+from problem_interface import Problem, Problem_factory
+from problem_cplex import Cplex_Problem_Factory
+from Problem_xpress import Xpress_Problem_Factory
 from dataset import dataset, load_csv
 
 
@@ -281,15 +283,30 @@ def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: 
 if __name__ == '__main__':
     # Testing the problem_generator function
 
-    prob_list = [sys.argv[1]]
+    nb_prob = int(sys.argv[1])
+    nb_cons = int(sys.argv[2])
+    nb_vars = int(sys.argv[3])
+    if nb_prob == 1:
+        prob_list = [sys.argv[4]]
+    else:
+        prob_list = sys.argv[4:4 + nb_prob]
+    if nb_cons == 0:
+        cons_to_vary = None
+    else:
+        cons_to_vary = sys.argv[4 + nb_prob:4 + nb_prob + nb_cons]
+    if nb_vars == 0:
+        vars_to_vary = None
+    else:
+        vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
+
     Number = 10
     Deviation = 0.1
 
-    data = problem_generator(prob_list, Number, Deviation, None, None, Cplex_Problem_Factory())
+    data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory())
     print(data.get_solutions())
     print(data.get_RHS())
     data.to_csv("test_to_csv")
-    #data1 = load_csv("test_to_csv_RHS", "test_to_csv_sol")
+
 
 
 

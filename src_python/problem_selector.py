@@ -1,6 +1,7 @@
 import pickle
 from problem_interface import Problem, Problem_factory
-from problem import Cplex_Problem_Factory
+from problem_cplex import Cplex_Problem_Factory
+from Problem_xpress import Xpress_Problem_Factory
 
 
 class Selector:
@@ -91,7 +92,7 @@ class Selector:
             name_list = self.prob_list
             for i in range(nb):
                 problem.read(self.prob_list[i])
-                constraints = problem.get_RHS()
+                constraints = problem.get_RHS(cons_to_vary)
                 rhs = format_RHS(constraints, cons_to_vary)
                 RHS_list[i] = rhs
         except:
@@ -100,21 +101,17 @@ class Selector:
         self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, name_list)
 
     def read_cons_to_vary(self, problem):
-        var_names = problem.get_constraint_names()
-        nb_vars = len(var_names)
+        cons_names = problem.get_constraint_names()
+        nb_cons = len(cons_names)
 
         if self.cons_to_vary is None:
-            cons_to_vary = []
-            for i in range(nb_vars):
-                this_name = var_names[i]
-                if this_name.startswith("demand"):
-                    cons_to_vary.append(i)
+            return None
         else:
             nb = len(self.cons_to_vary)
             counter = 0
             cons_to_vary = nb * [None]
-            for i in range(nb_vars):
-                if counter < nb and var_names[i] == self.cons_to_vary[counter]:
+            for i in range(nb_cons):
+                if counter < nb and cons_names[i] == self.cons_to_vary[counter]:
                     cons_to_vary[counter] = i
                     counter += 1
             if cons_to_vary[-1] is None:
@@ -178,7 +175,7 @@ def format_RHS(constraints, cons_to_vary):
     nb = len(cons_to_vary)
     rhs = nb * [None]
     for i in range(nb):
-        rhs[i] = (cons_to_vary[i], constraints[cons_to_vary[i]])
+        rhs[i] = (cons_to_vary[i], constraints[i])
     return rhs
 
 

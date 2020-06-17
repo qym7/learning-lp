@@ -3,7 +3,7 @@ The objective of the class dataset is to manipulate sets of RHS of linear optimi
 and their associated solutions (objective values) in order to make them exploitable
 by a neural network.
 """
-
+import os
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
@@ -141,7 +141,7 @@ class RHS:
         variations = self.get_constraint_devs()
         return np.mean(variations)
 
-    def save_csv(self, name):
+    def save_csv(self, name, path=None):
         """
         Saves content in a file with format csv.
 
@@ -149,9 +149,13 @@ class RHS:
         ---------
         name : str
             name of the new file
+        path : str
+            path to file
         """
         import csv
-        with open(name + ".csv", 'w', newline='') as file_RHS:
+        full_name = name + ".csv"
+        csv_path = os.path.join("." if path is None else path, full_name)
+        with open(csv_path, 'w', newline='') as file_RHS:
             writer = csv.writer(file_RHS, delimiter=',')
             writer.writerows(self.content)
 
@@ -242,7 +246,7 @@ class solutions:
         for i in range(self.size()):
             self.content[i] = f(self.content[i])
 
-    def save_csv(self, name):
+    def save_csv(self, name, path=None):
         """
         Saves content in a file with format csv.
 
@@ -250,11 +254,16 @@ class solutions:
         ---------
         name : str
             name of the new file
+        path : str
+            path to file
         """
         import csv
-        with open(name + ".csv", 'w', newline='') as file_sol:
+        full_name = name + ".csv"
+        csv_path = os.path.join("." if path is None else path, full_name)
+        with open(csv_path, 'w', newline='') as file_sol:
             writer = csv.writer(file_sol, delimiter=',')
-            writer.writerow(self.content)
+            sol_list = self.content.reshape(-1, 1)
+            writer.writerows(sol_list)
 
     def apply_linear(self, a, b):
         """ Applies the linear transformation x -> a * x + b to every solution in content."""
@@ -284,6 +293,8 @@ class dataset:
         self.RHS = RHS(RHS_list)
         self.solutions = solutions(solutions_list)
         s1, s2 = self.solutions.size(), self.RHS.size()
+        if s1 != s2:
+            print("{} != {}".format(s1, s2))
         assert s1 == s2, "RHS and solutions do not have the same size"
 
     def get_solutions(self):
@@ -313,7 +324,7 @@ class dataset:
         """
         return self.RHS.size()
 
-    def dump_in_file(self, file_name, path=""):
+    def dump_in_file(self, file_name, path=None):
         """
         Dumps self.RHS and self.solutions in a pickle file.
 
@@ -329,10 +340,11 @@ class dataset:
             name of the new file
         """
         import pickle
+        pickle_path = os.path.join("." if path is None else path, file_name)
         set = (self.RHS.get_RHS(), self.solutions.get_solutions())
-        pickle.dump(set, open(path + file_name, "wb"))
+        pickle.dump(set, open(pickle_path, "wb"))
 
-    def to_csv(self, name):
+    def to_csv(self, name, path=None):
         """
         Saves content in two distinct files with format csv.
 
@@ -344,15 +356,28 @@ class dataset:
         ---------
         name : str
             name of the new file
+        path : str
+            path to file
         """
-        self.RHS.save_csv(name + "_RHS")
-        self.solutions.save_csv(name + "_sol")
+        self.RHS.save_csv(name + "_RHS", path)
+        self.solutions.save_csv(name + "_sol", path)
 
     def cut(self, proportion_to_cut):
         """
-        Cuts a random part of the dataset and returns a new dataset.
+        Cuts a certain proportion of constraints out of self to create a new dataset.
 
-        The cut data is deleted from the first dataset.
+        The proportion of data to be cut out is given by proportion_to_cut. The indices
+        of the data to be cut out are chosen randomly. The cut data is deleted from the first dataset.
+
+        Arguments
+        ---------
+        proportion_to_cut : float
+            proportion of data to be cut out of self
+
+        Returns
+        -------
+        dataset : dataset instance
+            instance containing the cut out data
         """
         size = self.size()
         number_to_cut = int(proportion_to_cut * size)
@@ -410,7 +435,7 @@ class dataset:
         return self.cut(proportion_to_cut)
 
 
-def load_pickle(file_name, path=""):
+def load_pickle(file_name, path=None):
     """
     Unpickels a file into a dataset instance.
 
@@ -424,13 +449,14 @@ def load_pickle(file_name, path=""):
     file_name : str
         name of file
     """
-    set = pickle.load(open(path + file_name, "rb"))
+    pickle_path = os.path.join("." if path is None else path, file_name)
+    set = pickle.load(open(pickle_path, "rb"))
     data = dataset(set[0], set[1])
     assert data.solutions.size() == data.RHS.size(), "RHS and solutions do not have the same size"
     return data
 
 
-def load_csv(file_RHS, file_sol, path=""):
+def load_csv(file_RHS, file_sol, path=None):
     """
     Loads the content of two csv files into a dataset instance.
 
@@ -450,12 +476,14 @@ def load_csv(file_RHS, file_sol, path=""):
     import csv
     RHS_list = []
     solutions = []
-    with open(path + file_RHS, "r") as csv_RHS:
+    csv_path = os.path.join("." if path is None else path, file_RHS)
+    with open(csv_path, "r") as csv_RHS:
         reader = csv.reader(csv_RHS)
         for row in reader:
             RHS_list.append(row)
-    with open(path + file_sol, "r") as csv_sol:
+    sol_path = os.path.join("." if path is None else path, file_sol)
+    with open(sol_path, "r") as csv_sol:
         reader = csv.reader(csv_sol)
         for row in reader:
-            solutions.append(row)
+            solutions.append(row[0])
     return dataset(RHS_list, solutions)
