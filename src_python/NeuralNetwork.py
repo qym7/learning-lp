@@ -1,7 +1,8 @@
 import tensorflow as tf
-from package_name.analyse import to_analyze
-from package_name.dataset import dataset
+from analyse import to_analyze
+from dataset import dataset
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 
 
@@ -177,22 +178,27 @@ class NeuralNetwork:
             name = self.file_name
         else:
             self.file_name = name
-        self.model.save(path + name + ".h5")
+        path = os.path.join("." if path is None else path, "Trained_networks", name)
+        self.model.save(path + ".h5")
 
-    def save_model(self, name=None):
+    def save_model(self, name=None, path=None):
         """ Saves the model with the given name in SavedModel format. If no name is given, the previous name is used"""
         if name is None:
             assert self.file_name is not None, "No name :("
             name = self.file_name
         else:
             self.file_name = name
-        self.model.save(path + "Trained_networks/" + name)
+        path = os.path.join("." if path is None else path, "Trained_networks", name)
+        self.model.save(path)
 
     def get_details(self):
+        """
+        Prints all the details of the network.
+        """
         self.model.summary()
 
 
-def load_model(file_name, path=""):
+def load_model(file_name, path=None):
     """
     Loads a neural network from a file into a NeuralNetwork instance.
 
@@ -209,6 +215,7 @@ def load_model(file_name, path=""):
     file_name : str
        name of file containing neural_network
     """
-    new_model = tf.keras.models.load_model(path + file_name)
+    path = os.path.join("." if path is None else path, file_name)
+    new_model = tf.keras.models.load_model(path)
     network = NeuralNetwork(new_model, file_name)
     return network

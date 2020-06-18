@@ -8,6 +8,7 @@ For more information see its description of problem_generator.
 """
 
 import sys
+import os
 import numpy as np
 from problem_selector import extract
 from problem_interface import Problem, Problem_factory
@@ -205,7 +206,8 @@ class lin_opt_pbs:
             self.problem.var_set_bounds(values[i][0], values[i][1], values[i][1])
 
 
-def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory()):
+def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory(),
+                      save=False, path=None):
     """
     The function problem_generator generates an instance of dataset
     with N random RHS, based on a chosen linear optimization problem,
@@ -230,7 +232,11 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
         a list of names of the variables of the linear optimisation problems that should be fixed randomly
         when generating new problems. (All linear optimisation problems in prob_list should have an equal
         amount of variables with equal names and in the same order.)
-    factory : Problem_factory instance (see in problem_interface.py)<
+    factory : Problem_factory instance (see in problem_interface.py)
+    save : bool
+        set True if generated problems should be saved in csv file
+    path:
+        indicates where csv should be saved if save is True
 
     Return
     ------
@@ -249,6 +255,12 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     sol_list = prob_root.calculate_solutions()
     rhs_list = prob_root.extract_RHS()
     data = dataset(rhs_list, sol_list)
+
+    if save is True:
+        name = "Nb=" + str(N) +"_dev=" + str(dev)
+        for elem in cons_to_vary:
+            name = name + "_" + elem
+        data.to_csv(name, path)
 
     return data
 
@@ -299,13 +311,13 @@ if __name__ == '__main__':
     else:
         vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
 
-    Number = 10
+    Number = 1000000
     Deviation = 0.1
 
-    data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory())
+    data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
+                             save=True)
     print(data.get_solutions())
     print(data.get_RHS())
-    #data.to_csv("test_to_csv")
 
 
 
