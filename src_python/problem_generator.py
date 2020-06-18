@@ -305,7 +305,7 @@ if __name__ == '__main__':
     data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory())
     print(data.get_solutions())
     print(data.get_RHS())
-    data.to_csv("test_to_csv")
+    #data.to_csv("test_to_csv")
 
 
 

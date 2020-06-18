@@ -130,3 +130,6 @@ dmypy.json
 /src_python/.idea
 /data/test_to_csv_sol.csv
 /data/test_to_csv_RHS.csv
+/data/test_to_csv_RHS.csv
+/data/test_to_csv_sol.csv
+/data/test_to_csv_RHS.csv

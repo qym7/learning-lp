@@ -59,7 +59,7 @@ class Xpress_problem(Problem):
         nb_cons = len(constraints)
         name_list = nb_cons * [None]
         for i in range(nb_cons):
-            name_list[i] = constraints[i].name.rstrip(" ")
+            name_list[i] = constraints[i].name.strip()
         return name_list
 
     def get_variable_names(self):
@@ -74,7 +74,7 @@ class Xpress_problem(Problem):
         nb_vars = len(variables)
         name_list = nb_vars * [None]
         for i in range(nb_vars):
-            name_list[i] = variables[i].name.rstrip(" ")
+            name_list[i] = variables[i].name.strip()
         return name_list
 
     def solve(self):
