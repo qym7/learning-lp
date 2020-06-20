@@ -154,7 +154,7 @@ class RHS:
         """
         import csv
         full_name = name + ".csv"
-        csv_path = os.path.join("." if path is None else path, "Generated_problems", full_name)
+        csv_path = os.path.join("." if path is None else path, full_name)
         with open(csv_path, 'w', newline='') as file_RHS:
             writer = csv.writer(file_RHS, delimiter=',')
             writer.writerows(self.content)
@@ -259,7 +259,7 @@ class solutions:
         """
         import csv
         full_name = name + ".csv"
-        csv_path = os.path.join("." if path is None else path, "generated_problems", full_name)
+        csv_path = os.path.join("." if path is None else path, full_name)
         with open(csv_path, 'w', newline='') as file_sol:
             writer = csv.writer(file_sol, delimiter=',')
             sol_list = self.content.reshape(-1, 1)

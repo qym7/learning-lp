@@ -128,7 +128,7 @@ class lin_opt_pbs:
             for j in range(nb_con):
                 rhs[j] = constraints[j][1]
             if nb_vars > 0:
-                for j in range(nb_con):
+                for j in range(nb_vars):
                     rhs[j + nb_con] = variables[j][1]
             new_rhs[i] = rhs
         return new_rhs
@@ -258,9 +258,14 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
 
     if save is True:
         name = "Nb=" + str(N) +"_dev=" + str(dev)
-        for elem in cons_to_vary:
-            name = name + "_" + elem
-        data.to_csv(name, path)
+        if cons_to_vary is not None:
+            for elem in cons_to_vary:
+                name = name + "_" + elem
+        if vars_to_vary is not None:
+            for elem in vars_to_vary:
+                name = name + "_" + elem
+        new_path = os.path.join("." if path is None else path, "Generated_problems", prob_list[0])
+        data.to_csv(name, new_path)
 
     return data
 
@@ -293,7 +298,7 @@ def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: 
 
 
 if __name__ == '__main__':
-    # Testing the problem_generator function
+    #Testing the problem_generator function
 
     nb_prob = int(sys.argv[1])
     nb_cons = int(sys.argv[2])
@@ -311,14 +316,25 @@ if __name__ == '__main__':
     else:
         vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
 
-    Number = 1000000
+    Number = 100000
     Deviation = 0.1
 
     data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
                              save=True)
+
     print(data.get_solutions())
     print(data.get_RHS())
 
+    # var_list = ["C1", "C6", "C7", "C8", "C9"]
+    # Number = 100000
+    # Deviation = 0
+    # prob_list = ["problem_rte_1.lp"]
+    # cons_to_vary = None
+    #
+    # for elem in var_list:
+    #     vars_to_vary = [elem]
+    #     data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
+    #                              save=True)
 
 
 

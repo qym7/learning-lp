@@ -172,11 +172,14 @@ def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_fa
 
 def format_RHS(constraints, cons_to_vary):
     """Creating an RHS in the format required by the class lin_opt_pbs out of a list of constraints."""
-    nb = len(cons_to_vary)
-    rhs = nb * [None]
-    for i in range(nb):
-        rhs[i] = (cons_to_vary[i], constraints[i])
-    return rhs
+    if cons_to_vary is None:
+        return []
+    else:
+        nb = len(cons_to_vary)
+        rhs = nb * [None]
+        for i in range(nb):
+            rhs[i] = (cons_to_vary[i], constraints[i])
+        return rhs
 
 
 if __name__ == '__main__':

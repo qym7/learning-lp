@@ -30,11 +30,14 @@ class Xpress_problem(Problem):
         rhs : float list
         """
         rhs = []
-        for elem in cons_to_vary:
-            aux = []
-            self.content.getrhs(aux, elem, elem)
-            rhs.append(aux[0])
-        return rhs
+        if cons_to_vary is None:
+            return rhs
+        else:
+            for elem in cons_to_vary:
+                aux = []
+                self.content.getrhs(aux, elem, elem)
+                rhs.append(aux[0])
+            return rhs
 
     def set_RHS(self, rhs):
         """
