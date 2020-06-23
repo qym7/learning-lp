@@ -421,12 +421,15 @@ class dataset:
         """Copies the dataset."""
         return dataset(np.copy(self.get_RHS()), np.copy(self.get_solutions()))
 
-    def sol_fct_of_RHS(self):
+    def plot2D_sol_fct_of_RHS(self):
         """
         Plots the solutions as a function of the constraints in the RHS.
-        Asserts that the number of constraints is inferior to 2.
+        Asserts that the number of constraints is equal to 1.
         """
-        plt.plot(self.get_RHS(), self.get_solutions())
+        x = self.get_RHS()
+        y = self.get_solutions()
+        assert len(x[0]) <= 1, "plots must be 2D"
+        plt.plot(x, y)
         plt.show()
 
     def cut_the_first_one(self):
@@ -440,7 +443,7 @@ def load_pickle(file_name, path=None):
     Unpickels a file into a dataset instance.
 
     Should only be used on a file that has previously been pickled
-    by the method dataset.dump_in_file (see dump_inf_file).
+    by the method dataset.dump_in_file (see dump_in_file).
 
     Arguments
     ---------

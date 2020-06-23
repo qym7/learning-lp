@@ -257,7 +257,7 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     data = dataset(rhs_list, sol_list)
 
     if save is True:
-        name = "Nb=" + str(N) +"_dev=" + str(dev)
+        name = "Nb=" + str(N) + "_dev=" + str(dev)
         if cons_to_vary is not None:
             for elem in cons_to_vary:
                 name = name + "_" + elem
