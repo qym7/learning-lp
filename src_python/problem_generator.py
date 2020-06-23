@@ -74,35 +74,40 @@ class lin_opt_pbs:
     def get_cons_to_vary(self):
         return self.cons_to_vary
 
+    def set_generated_RHS(self, RHS_list):
+        self.generated_RHS = RHS_list
+
+    def add_generated_RHS(self, RHS, ind=None):
+        if ind is None:
+            self.generated_RHS.append(RHS)
+        else:
+            self.generated_RHS[ind] = RHS
+
     def clear_generated_RHS(self):
         self.generated_RHS = []
 
-    def calculate_solutions(self):
+    def calculate_solution(self, RHS):
         """
-        The method calculate_solutions determines the exact solutions (objective value)
-        of the problems in an instance of lin_opt_pbs and returns them in a list.
+        The method calculate_solutions determines the exact solution (objective value)
+        of self.problem with the RHS given as an argument (if that linear optimisation
+        problem is feasible).
 
         Arguments
         ---------
-        No arguments
+        RHS : [(int, float) list, (int, float) list]
 
         Return
         ------
-        a list of solutions : float list
+        solution : float
+            solution of linear optimisation problem (if feasible)
+        is_feasible : bool
+            states whether linear optimisation problem is feasible
         """
-        nb_pb = len(self.generated_RHS)
-        solutions = nb_pb * [None]
-        counter = 1
-        for pb in range(nb_pb):
-            if pb == counter:
-                print(pb)
-                counter = 2*counter
-            RHS = self.generated_RHS[pb]
-            self.problem.set_RHS(RHS[0])
-            self.set_vars(RHS[1])
-            self.problem.solve()
-            solutions[pb] = self.problem.get_objective_value()
-        return solutions
+        self.problem.set_RHS(RHS[0])
+        self.set_vars(RHS[1])
+        self.problem.solve()
+        solution = self.problem.get_objective_value()
+        return solution, self.problem.is_feasible()
 
     def extract_RHS(self):
         """
@@ -157,7 +162,8 @@ class lin_opt_pbs:
 
         Return
         ------
-        No return (the new RHS has been added to self.RHS_list)
+        RHS : [(int, float) list, (int, float) list]
+            the generated RHS
         """
         rhs = self.RHS_list[k]
         nb = len(rhs)
@@ -167,7 +173,7 @@ class lin_opt_pbs:
             new_val = val + (np.random.normal(0, abs(val) * self.dev, 1))[0]  # add gaussian noise to the RHS
             new_rhs[i] = (rhs[i][0], new_val)
         values = self.choose_vars_random()
-        self.generated_RHS.append([new_rhs, values])
+        return [new_rhs, values]
 
     def choose_vars_random(self):
         """
@@ -251,11 +257,22 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     prob_root.set_deviation(dev)
     K = len(prob_root.RHS_list)
 
-    for i in range(N):
-        ind = np.random.randint(K)
-        prob_root.generate_random_RHS(ind)
+    sol_list = N * [None]
+    prob_root.set_generated_RHS(N * [None])
 
-    sol_list = prob_root.calculate_solutions()
+    counter = 1
+    for i in range(N):
+        if i == counter:
+            print(i)
+            counter = counter * 2
+        is_feasible = False
+        ind = np.random.randint(K)
+        while is_feasible is False:
+            rhs = prob_root.generate_random_RHS(ind)
+            solution, is_feasible = prob_root.calculate_solution(rhs)
+        prob_root.add_generated_RHS(rhs, i)
+        sol_list[i] = solution
+
     rhs_list = prob_root.extract_RHS()
     data = dataset(rhs_list, sol_list)
 
@@ -289,12 +306,19 @@ def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: 
     while True:
         prob_root.clear_generated_RHS()
 
+        sol_list = N * [None]
+        prob_root.set_generated_RHS(N * [None])
+
         for i in range(N):
+            is_feasible = False
             ind = np.random.randint(K)
-            prob_root.generate_random_RHS(ind)
+            while is_feasible is False:
+                rhs = prob_root.generate_random_RHS(ind)
+                solution, is_feasible = prob_root.calculate_solution(rhs)
+            prob_root.add_generated_RHS(rhs, i)
+            sol_list[i] = solution
 
         rhs_list = prob_root.extract_RHS()
-        sol_list = prob_root.calculate_solutions()
         data = dataset(rhs_list, sol_list)
 
         yield data
@@ -320,7 +344,7 @@ if __name__ == '__main__':
         vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
 
     Number = 100
-    Deviation = 1.5
+    Deviation = 5
 
     data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
                              save=False)
@@ -339,6 +363,3 @@ if __name__ == '__main__':
     #     vars_to_vary = [elem]
     #     data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
     #                              save=True)
-
-
-
