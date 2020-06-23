@@ -87,6 +87,16 @@ class Cplex_problem(Problem):
         self.content.variables.set_lower_bounds(ind, lw_bnd)
         self.content.variables.set_upper_bounds(ind, up_bnd)
 
+    def get_status(self):
+        """Returns the status of the solution"""
+        return self.content.solution.get_status()
+
+    def is_feasible(self):
+        """True if problem is feasible."""
+        if self.get_status() == 3:
+            return False
+        else:
+            return True
 
 class Cplex_Problem_Factory(Problem_factory):
 
@@ -97,3 +107,12 @@ class Cplex_Problem_Factory(Problem_factory):
         p = Cplex_problem()
         p.read(filename)
         return p
+
+
+# if __name__ == '__main__':
+#
+#     petit_probleme = Cplex_Problem_Factory().read_problem_from_file("petit_probleme.lp")
+#     petit_probleme.set_RHS([(25, -24.16852086)])
+#     petit_probleme.solve()
+#     print(petit_probleme.get_objective_value())
+#     print(petit_probleme.get_status())

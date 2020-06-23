@@ -76,6 +76,13 @@ class Problem:
         """Sets the bounds of the variable with index ind to lw_bnd and up_bnd."""
         pass
 
+    def get_status(self):
+        """Returns the status of the solution"""
+        pass
+
+    def is_feasible(self):
+        """True if problem is feasible."""
+        pass
 
 class Problem_factory:
 

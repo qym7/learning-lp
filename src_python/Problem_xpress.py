@@ -101,6 +101,17 @@ class Xpress_problem(Problem):
         """Sets the bounds of the variable with index ind to lw_bnd and up_bnd."""
         self.content.chgbounds([ind, ind], ["L", "U"], [lw_bnd, up_bnd])
 
+    def get_status(self):
+        """Returns the status of the solution"""
+        return self.content.getProbStatusString()
+
+    def is_feasible(self):
+        """True if problem is feasible."""
+        if self.get_status() == "lp_infeas":
+            return False
+        else:
+            return True
+
 
 class Xpress_Problem_Factory(Problem_factory):
 
@@ -111,3 +122,12 @@ class Xpress_Problem_Factory(Problem_factory):
         p = Xpress_problem()
         p.read(filename)
         return p
+
+
+# if __name__ == '__main__':
+#
+#     petit_probleme = Xpress_Problem_Factory().read_problem_from_file("petit_probleme.lp")
+#     petit_probleme.set_RHS([(25, -12)])
+#     petit_probleme.solve()
+#     print(petit_probleme.get_objective_value())
+#     print(petit_probleme.get_status())

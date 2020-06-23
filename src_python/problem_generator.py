@@ -207,7 +207,7 @@ class lin_opt_pbs:
 
 
 def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory(),
-                      save=False, path=None):
+                      save=False, single_file=False, path=None):
     """
     The function problem_generator generates an instance of dataset
     with N random RHS, based on a chosen linear optimization problem,
@@ -234,7 +234,10 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
         amount of variables with equal names and in the same order.)
     factory : Problem_factory instance (see in problem_interface.py)
     save : bool
-        set True if generated problems should be saved in csv file
+        set True if generated problems should be saved in csv file (see dataset.to_csv)
+    single_file : bool
+        states whether self.RHS and self.solutions are saved in a single file
+        or two separate files (see dataset.to_csv)
     path:
         indicates where csv should be saved if save is True
 
@@ -265,7 +268,7 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
             for elem in vars_to_vary:
                 name = name + "_" + elem
         new_path = os.path.join("." if path is None else path, "Generated_problems", prob_list[0])
-        data.to_csv(name, new_path)
+        data.to_csv(name, new_path, single_file)
 
     return data
 
@@ -316,14 +319,15 @@ if __name__ == '__main__':
     else:
         vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
 
-    Number = 10000
+    Number = 100
     Deviation = 1.5
 
     data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
-                             save=True)
+                             save=False)
 
     print(data.get_solutions())
     print(data.get_RHS())
+    data.plot2D_sol_fct_of_RHS()
 
     # var_list = ["C1", "C6", "C7", "C8", "C9"]
     # Number = 100000

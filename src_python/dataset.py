@@ -344,11 +344,13 @@ class dataset:
         set = (self.RHS.get_RHS(), self.solutions.get_solutions())
         pickle.dump(set, open(pickle_path, "wb"))
 
-    def to_csv(self, name, path=None):
+    def to_csv(self, name, path=None, single_file=False):
         """
-        Saves content in two distinct files with format csv.
+        Saves content in a single or two distinct files with format csv.
 
-        The first file contains self.RHS, the second one self.solutions.
+        If single_file is True, the content is saved in a single file.
+        Else the content is saved in two separate files. More precisely,
+        the first file contains self.RHS, the second one self.solutions.
         Both files are saved in the same directory and have names that start
         with the string given as an argument.
 
@@ -358,9 +360,22 @@ class dataset:
             name of the new file
         path : str
             path to file
+        single_file : bool
+            states whether self.RHS and self.solutions are saved in a single file
+            or two separate files
         """
-        self.RHS.save_csv(name + "_RHS", path)
-        self.solutions.save_csv(name + "_sol", path)
+        import csv
+        if single_file:
+            reshaped_sol = np.reshape(self.get_solutions(), (self.size(), 1))
+            content = np.concatenate((self.get_RHS(), reshaped_sol), axis=1)
+            full_name = name + ".csv"
+            csv_path = os.path.join("." if path is None else path, full_name)
+            with open(csv_path, 'w', newline='') as file_cont:
+                writer = csv.writer(file_cont, delimiter=',')
+                writer.writerows(content)
+        else:
+            self.RHS.save_csv(name + "_RHS", path)
+            self.solutions.save_csv(name + "_sol", path)
 
     def cut(self, proportion_to_cut):
         """
@@ -429,7 +444,7 @@ class dataset:
         x = self.get_RHS()
         y = self.get_solutions()
         assert len(x[0]) <= 1, "plots must be 2D"
-        plt.plot(x, y)
+        plt.scatter(x, y)
         plt.show()
 
     def cut_the_first_one(self):
