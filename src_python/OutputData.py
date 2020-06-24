@@ -4,16 +4,12 @@ from dataset import solutions
 
 
 class OutputData:
-    def __init__(self, sol_list, predict_list, learning_history=None, network=None):
+    def __init__(self, sol_list, predict_list, network=None):
         self.solutions = solutions(sol_list)
         self.predictions = solutions(predict_list)
         s1, s2 = self.solutions.size(), self.predictions.size()
         assert s1 == s2, "Solutions and predictions do not have the same size"
-        self.history = learning_history
         self.used_network = network
-
-    def add_learning_history(self, history):
-        self.history = history
 
     def add_used_network(self, neural_network):
         self.used_network = neural_network

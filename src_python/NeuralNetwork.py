@@ -30,6 +30,7 @@ class NeuralNetwork:
         self.compile = True
         self.bound_processing = []
         self.solutions_processing = []
+        self.history = None
 
     def basic_nn(self, list_neurons=None, last_activation=None):
         """
@@ -150,13 +151,8 @@ class NeuralNetwork:
         self.compute_processing_parameters(data)
         self.pre_process_data(data)
 
-        history = self.fit(data.get_RHS(), data.get_solutions(), epochs=epochs,
-                           validation_split=validation_split, callbacks=callbacks)
-        object_to_analyze = self.predict(initial_data)
-        object_to_analyze.add_learning_history(history)
-        object_to_analyze.add_used_network(self)
-
-        return object_to_analyze
+        self.history = self.fit(data.get_RHS(), data.get_solutions(), epochs=epochs,
+                                validation_split=validation_split, callbacks=callbacks)
 
     def train_with_generator(self, generator, epochs, steps_per_epoch, validation_generator, callbacks):
         """ Trains the network using the dataset. Arguments : class dataset Out : class to_analyze"""
