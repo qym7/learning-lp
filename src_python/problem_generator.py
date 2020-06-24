@@ -211,6 +211,78 @@ class lin_opt_pbs:
         for i in range(nb):
             self.problem.var_set_bounds(values[i][0], values[i][1], values[i][1])
 
+    def generate_and_solve(self, N):
+        """
+        Auxiliary function to problem_generator (see problem_generator.problem_generator).
+
+        Generates a random RHS based on a randomly chosen RHS in self.RHS_list, solves
+        self.problem with the newly generated RHS and repeats that process until the
+        obtained linear optimisation problem is feasible. If the generated problem is feasible,
+        the generated RHS is stocked in self.generated_RHS and the solution value is stocked
+        in a list.
+
+        Arguments
+        ---------
+        N : int
+            number of problems to be generated
+
+        Returns
+        -------
+        sol_list : float list
+            list of solutions associated to the newly generated RHS
+        """
+        K = len(self.RHS_list)
+        sol_list = N * [None]
+        self.set_generated_RHS(N * [None])
+
+        counter = 1
+        for i in range(N):
+            if i == counter:
+                print(i)
+                counter = counter * 2
+            is_feasible = False
+            ind = np.random.randint(K)
+            stopper = 0
+            while is_feasible is False:
+                rhs = self.generate_random_RHS(ind)
+                solution, is_feasible = self.calculate_solution(rhs)
+                if stopper == 100:
+                    raise Exception("Problem {} seems to be infeasible or dev is way too high".format(i))
+                else:
+                    stopper += 1
+            self.add_generated_RHS(rhs, i)
+            sol_list[i] = solution
+
+        return sol_list
+
+
+def give_name(N, dev, cons_to_vary=None, vars_to_vary=None):
+    """
+    Creates a file name for a set of generated problems.
+
+    The file name contains som practical information (number of generated problems,
+    deviation used while generation, names of varied constraints and variables).
+
+    Arguments
+    ---------
+    N : int
+        number of generated problems
+    dev : float
+        deviation used while generation
+    cons_to_vary : string list
+        list of names of the constraints that varied while generation
+    vars_to_vary : string list
+        list of names of the variables that were fixed randomly while generation
+    """
+    name = "Nb=" + str(N) + "_dev=" + str(dev)
+    if cons_to_vary is not None:
+        for elem in cons_to_vary:
+            name = name + "_" + elem
+    if vars_to_vary is not None:
+        for elem in vars_to_vary:
+            name = name + "_" + elem
+    return name
+
 
 def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory(),
                       save=False, single_file=False, path=None):
@@ -255,35 +327,13 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     cont = extract(prob_list, cons_to_vary, vars_to_vary, factory)
     prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3])
     prob_root.set_deviation(dev)
-    K = len(prob_root.RHS_list)
 
-    sol_list = N * [None]
-    prob_root.set_generated_RHS(N * [None])
-
-    counter = 1
-    for i in range(N):
-        if i == counter:
-            print(i)
-            counter = counter * 2
-        is_feasible = False
-        ind = np.random.randint(K)
-        while is_feasible is False:
-            rhs = prob_root.generate_random_RHS(ind)
-            solution, is_feasible = prob_root.calculate_solution(rhs)
-        prob_root.add_generated_RHS(rhs, i)
-        sol_list[i] = solution
-
+    sol_list = prob_root.generate_and_solve(N)
     rhs_list = prob_root.extract_RHS()
     data = dataset(rhs_list, sol_list)
 
     if save is True:
-        name = "Nb=" + str(N) + "_dev=" + str(dev)
-        if cons_to_vary is not None:
-            for elem in cons_to_vary:
-                name = name + "_" + elem
-        if vars_to_vary is not None:
-            for elem in vars_to_vary:
-                name = name + "_" + elem
+        name = give_name(N, dev, cons_to_vary, vars_to_vary)
         new_path = os.path.join("." if path is None else path, "Generated_problems", prob_list[0])
         data.to_csv(name, new_path, single_file)
 
@@ -301,23 +351,10 @@ def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: 
     cont = extract(prob_list, cons_to_vary, vars_to_vary, factory)
     prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3])
     prob_root.set_deviation(dev)
-    K = len(prob_root.RHS_list)
 
     while True:
         prob_root.clear_generated_RHS()
-
-        sol_list = N * [None]
-        prob_root.set_generated_RHS(N * [None])
-
-        for i in range(N):
-            is_feasible = False
-            ind = np.random.randint(K)
-            while is_feasible is False:
-                rhs = prob_root.generate_random_RHS(ind)
-                solution, is_feasible = prob_root.calculate_solution(rhs)
-            prob_root.add_generated_RHS(rhs, i)
-            sol_list[i] = solution
-
+        sol_list =prob_root.generate_and_solve(N)
         rhs_list = prob_root.extract_RHS()
         data = dataset(rhs_list, sol_list)
 
