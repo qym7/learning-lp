@@ -54,6 +54,9 @@ class BoundProcessorNormalise(BoundProcessor):
         self.scaler.fit(data.get_RHS())
 
     def pre_process(self, data):
+        """
+        Normalises the RHS stocked in data.RHS constraint by constraint to mean 0 and deviation 1.
+        """
         new_RHS = self.scaler.transform(data.get_RHS())
         data.set_RHS(new_RHS)
 
@@ -111,6 +114,9 @@ class SolutionProcessorNormalise(SolutionProcessor):
         self.scaler.fit(data.get_solutions().reshape(-1, 1))
 
     def pre_process(self, data):
+        """
+        Normalises the solutions stocked in data.solutions to mean 0 and deviation 1.
+        """
         new_solutions = self.scaler.transform(data.get_solutions().reshape(-1, 1))
         data.set_solutions(new_solutions)
 

@@ -1,5 +1,5 @@
 """
-The objective of the class dataset is to manipulate sets of RHS of linear optimisation problems
+The objective of the class dataset is to stock sets of RHS of linear optimisation problems
 and their associated solutions (objective values) in order to make them exploitable
 by a neural network.
 """
@@ -42,55 +42,6 @@ class RHS:
     def set_RHS(self, new_RHS_list):
         self.__init__(new_RHS_list)
 
-    def normalize_standard(self):
-        """
-        Normalises the RHS stocked in the RHS instance constraint by constraint to mean 0 and deviation 1.
-        """
-        scaler = StandardScaler()
-        self.content = scaler.fit_transform(self.content)
-
-    def max(self):
-        """
-        Returns an array with the max value for each constraint.
-
-        Returns
-        -------
-        lmax : np.array
-        """
-        lmax = []
-        (n, p) = self.content.shape
-        for j in range(p):
-            lmax.append(max(self.content[:, j]))
-        return np.array(lmax)
-
-    def min(self):
-        """
-        Returns an array with the min value for each constraint.
-
-        Returns
-        -------
-        lmin : np.array
-        """
-        lmin = []
-        (n, p) = self.content.shape
-        for j in range(p):
-            lmin.append(min(self.content[:, j]))
-        return np.array(lmin)
-
-    def range(self):
-        """
-        Returns an array with the range for each constraint.
-
-        Returns
-        -------
-        ranges : np.array
-        """
-        return self.max() - self.min()
-
-    def boxplot_range(self):
-        """Creates a boxplot of the range of the different constraints."""
-        plt.boxplot(self.range(), whis=[2.5, 97.5])
-
     def size(self):
         """
         Returns the number of RHS stocked in content.
@@ -100,46 +51,6 @@ class RHS:
         size : int
         """
         return len(self.content)
-
-    def add_const(self, number_of_const=1):
-        """
-        Adds a certain number of ones at the end of each RHS.
-
-        By default, a single 1 will be added at the end of each RHS. This
-        is a standard procedure before fitting a set of data to a neural network.
-
-        Arguments
-        ---------
-        number_of_const : int (1 by default)
-            the number of constants to be added at the end of each RHS
-        """
-        n = self.size()
-        const_matrix = np.ones((n, number_of_const))
-        self.__init__(np.hstack((self.get_RHS(), const_matrix)))
-
-    def get_constraint_devs(self):
-        """
-        Returns the biased standard deviation of each constraint of the RHS in an array.
-
-        Returns
-        -------
-        variations : np.array
-            list of standard deviations
-        """
-        variations = variation(self.content, axis=1)
-        return variations
-
-    def get_dev(self):
-        """
-        Returns teh mean of the biased standard deviations of the different constraints of the RHS.
-
-        Returns
-        -------
-        dev : float
-            mean of the standard deviations
-        """
-        variations = self.get_constraint_devs()
-        return np.mean(variations)
 
     def save_csv(self, name, path=None):
         """
@@ -204,48 +115,6 @@ class solutions:
         """
         return len(self.content)
 
-    def mean(self):
-        """
-        Returns the mean solutions stocked in content.
-
-        Returns
-        -------
-        mean : float
-        """
-        return np.mean(self.content)
-
-    def normalize_standard(self):
-        """
-        Normalises the solutions stocked in content to mean 0 and deviation 1.
-        """
-        scaler = StandardScaler()
-        # The solution array of dimensions (n,1) has to be reshaped to (1,n),
-        # since the scaler always scales on the features axis (axis=1).
-        self.content = scaler.fit_transform(self.content.reshape(-1, 1))
-
-    def toSigmoid(self):
-        """
-        Normalises the solutions stocked in content to mean 0 and deviation 1 before applying the
-        cumulative distribution function of the logistic distribution.
-
-        Can be an interesting choice if the data is fit to a neural network with a sigmoid activation
-        in the last layer.
-        """
-        from scipy.stats import logistic
-        self.normalize_standard()
-        self.content = logistic.cdf(self.content)
-
-    def apply(self, f):
-        """
-        Applies the function f to every solution in content.
-
-        Arguments
-        ---------
-        f : a real function
-        """
-        for i in range(self.size()):
-            self.content[i] = f(self.content[i])
-
     def save_csv(self, name, path=None):
         """
         Saves content in a file with format csv.
@@ -264,14 +133,6 @@ class solutions:
             writer = csv.writer(file_sol, delimiter=',')
             sol_list = self.content.reshape(-1, 1)
             writer.writerows(sol_list)
-
-    def apply_linear(self, a, b):
-        """ Applies the linear transformation x -> a * x + b to every solution in content."""
-        self.apply(lambda x: a * x + b)
-
-    def box(self):
-        """boxplot of the solutions"""
-        plt.boxplot(self.content, whis=[2.5, 97.5])
 
 
 class dataset:
@@ -435,17 +296,6 @@ class dataset:
     def copy(self):
         """Copies the dataset."""
         return dataset(np.copy(self.get_RHS()), np.copy(self.get_solutions()))
-
-    def plot2D_sol_fct_of_RHS(self):
-        """
-        Plots the solutions as a function of the constraints in the RHS.
-        Asserts that the number of constraints is equal to 1.
-        """
-        x = self.get_RHS()
-        y = self.get_solutions()
-        assert len(x[0]) <= 1, "plots must be 2D"
-        plt.scatter(x, y)
-        plt.show()
 
     def cut_the_first_one(self):
         assert self.size() > 0

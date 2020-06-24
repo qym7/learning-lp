@@ -367,6 +367,7 @@ if __name__ == '__main__':
     # nb_prob = int(sys.argv[1])
     # nb_cons = int(sys.argv[2])
     # nb_vars = int(sys.argv[3])
+    #
     # if nb_prob == 1:
     #     prob_list = [sys.argv[4]]
     # else:
@@ -381,7 +382,7 @@ if __name__ == '__main__':
     #     vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
     #
     # Number = 100
-    # Deviation = 5
+    # Deviation = 0
     #
     # data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
     #                          save=False)
