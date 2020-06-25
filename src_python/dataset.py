@@ -67,7 +67,7 @@ class RHS:
         full_name = name + ".csv"
         csv_path = os.path.join("." if path is None else path, full_name)
         with open(csv_path, 'w', newline='') as file_RHS:
-            writer = csv.writer(file_RHS, delimiter=',')
+            writer = csv.writer(file_RHS, delimiter=';')
             writer.writerows(self.content)
 
 
@@ -130,7 +130,7 @@ class solutions:
         full_name = name + ".csv"
         csv_path = os.path.join("." if path is None else path, full_name)
         with open(csv_path, 'w', newline='') as file_sol:
-            writer = csv.writer(file_sol, delimiter=',')
+            writer = csv.writer(file_sol, delimiter=';')
             sol_list = self.content.reshape(-1, 1)
             writer.writerows(sol_list)
 
@@ -232,7 +232,7 @@ class dataset:
             full_name = name + ".csv"
             csv_path = os.path.join("." if path is None else path, full_name)
             with open(csv_path, 'w', newline='') as file_cont:
-                writer = csv.writer(file_cont, delimiter=',')
+                writer = csv.writer(file_cont, delimiter=';')
                 writer.writerows(content)
         else:
             self.RHS.save_csv(name + "_RHS", path)

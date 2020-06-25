@@ -7,9 +7,6 @@ import os
 import matplotlib.pyplot as plt
 
 
-# This class implements a neural network. The neural_network is trained and tested with an instance of dataset
-# This class allows to modify the neural network
-
 ### example : how to create a basic neural network with a pre_processing
 #
 #   neural_network = NeuralNetwork()
@@ -21,6 +18,33 @@ import matplotlib.pyplot as plt
 
 
 class NeuralNetwork:
+    """
+    The class NeuralNetwork implements a neural networks and provides methods the build,
+    modify and use a neural network.
+
+    A NeuralNetwork instance takes a dataset instance (see dataset.dataset) as input for
+    training, evaluation and prediction. The output after prediction is an OutputData instance
+    (see OutputData.OutputData).
+
+    Attributes
+    ----------
+    model : tensorflow.keras.Model or tensorflow.keras.Sequential()
+        a tensorflow neural network
+    loss : str, tf.keras.losses instance or other compatible function
+        loss function of the network. Should be a tensorflow loss function (class tf.keras.losses)
+        or the name (string) of a tensorflow loss function (ex. "mean_absolute_percentage_error",
+        "mean_squared_error" etc.).
+    optimizer : str, tf.keras.optimizers instance or other compatible optimizer
+        optimizer of the network. Should be a tensorflow optimizer (class tf.keras.optimizers)
+        or the name (string) of a tensorflow optimizer (ex. "Adam", "sgd" etc.).
+    metrics : list containing str, tf.keras.metrics or other compatible metrics
+        list of metrics of the network. Should be a list containing tensorflow metrics
+        (class tf.keras.metrics) and/or the names of tensorflow metrics (ex. "mean_absolute_percentage_error",
+        "mean_squared_error" etc.).
+    file_name : str
+        If network was loaded from file, name of that file. Else name that will be given to file if
+        self network is stocked in file.
+    """
     def __init__(self, model=tf.keras.models.Sequential(), file_name=None):
         self.model = model
         self.loss = "mean_absolute_percentage_error"

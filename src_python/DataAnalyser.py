@@ -137,7 +137,5 @@ class OutputDataAnalyser:
         for i in range(len(solutions)):
             if abs((predictions[i] - solutions[i]) / solutions[i]) > hoped_precision:
                 number_over_precision += 1
-        #       print("The proportion of predictions over relative precision ", self.hoped_precision, " is ",
-        #             number_over_precision / self.size)
         return number_over_precision / self.content.size()
 
