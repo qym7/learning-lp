@@ -287,10 +287,12 @@ class dataset:
         other_dataset : dataset instance
             dataset to be merged with self
         """
-        assert isinstance(other_dataset, dataset), "It must be an instance of dataset"
-        assert len(other_dataset.get_RHS()[0]) == len(self.get_RHS()[0]), "Coordinates do not have the same size :'("
+        assert isinstance(other_dataset, dataset), "Argument has to be a dataset instance."
+        assert len(other_dataset.get_RHS()[0]) == len(self.get_RHS()[0]), "Bound vectors do not have the same size."
+
         new_RHS_array = np.concatenate((self.get_RHS(), other_dataset.get_RHS()), axis=0)
         new_solutions_array = np.concatenate((self.get_solutions(), other_dataset.get_solutions()), axis=0)
+        
         self.__init__(new_RHS_array, new_solutions_array)
 
     def copy(self):

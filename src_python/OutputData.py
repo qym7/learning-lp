@@ -26,7 +26,7 @@ class OutputData:
 
     def set_predictions(self, new_predictions):
         assert len(new_predictions) == self.size()
-        self.solutions.set_solutions(new_predictions)
+        self.predictions.set_solutions(new_predictions)
 
     def size(self):
         """
