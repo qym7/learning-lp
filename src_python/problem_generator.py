@@ -239,7 +239,7 @@ class lin_opt_pbs:
         for i in range(N):
             if i == counter:
                 print(i)
-                counter = counter * 2
+                counter = counter + 100
             is_feasible = False
             ind = np.random.randint(K)
             stopper = 0
@@ -285,7 +285,7 @@ def give_name(N, dev, cons_to_vary=None, vars_to_vary=None):
 
 
 def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory(),
-                      save=False, single_file=False, path=None):
+                      save=False, single_file=False, path=None, name=None):
     """
     The function problem_generator generates an instance of dataset
     with N random RHS, based on a chosen linear optimization problem,
@@ -316,8 +316,10 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     single_file : bool
         states whether self.RHS and self.solutions are saved in a single file
         or two separate files (see dataset.to_csv)
-    path:
+    path :
         indicates where csv should be saved if save is True
+    name : str
+        gives name of file where data is stocked if save is True. If None, name is generated automatically.
 
     Return
     ------
@@ -333,7 +335,8 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     data = dataset(rhs_list, sol_list)
 
     if save is True:
-        name = give_name(N, dev, cons_to_vary, vars_to_vary)
+        if name is None:
+            name = give_name(N, dev, cons_to_vary, vars_to_vary)
         new_path = os.path.join("." if path is None else path, "Generated_problems", prob_list[0])
         data.to_csv(name, new_path, single_file)
 
@@ -354,49 +357,10 @@ def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: 
 
     while True:
         prob_root.clear_generated_RHS()
-        sol_list =prob_root.generate_and_solve(N)
+        sol_list = prob_root.generate_and_solve(N)
         rhs_list = prob_root.extract_RHS()
         data = dataset(rhs_list, sol_list)
 
         yield data
 
 
-if __name__ == '__main__':
-    #Testing the problem_generator function
-
-    # nb_prob = int(sys.argv[1])
-    # nb_cons = int(sys.argv[2])
-    # nb_vars = int(sys.argv[3])
-    #
-    # if nb_prob == 1:
-    #     prob_list = [sys.argv[4]]
-    # else:
-    #     prob_list = sys.argv[4:4 + nb_prob]
-    # if nb_cons == 0:
-    #     cons_to_vary = None
-    # else:
-    #     cons_to_vary = sys.argv[4 + nb_prob:4 + nb_prob + nb_cons]
-    # if nb_vars == 0:
-    #     vars_to_vary = None
-    # else:
-    #     vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
-    #
-    # Number = 100
-    # Deviation = 0
-    #
-    # data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
-    #                          save=False)
-    #
-    # print(data.get_solutions())
-    # print(data.get_RHS())
-    # data.plot2D_sol_fct_of_RHS()
-
-    var_list = ["C1", "C6", "C7", "C8", "C9"]
-    Number = 10000
-    Deviation = 0
-    prob_list = ["problem_rte_2.lp"]
-    cons_to_vary = None
-    for elem in var_list:
-        vars_to_vary = [elem]
-        data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
-                                 save=True, single_file=True)

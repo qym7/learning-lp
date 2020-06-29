@@ -3,20 +3,72 @@ from dataset import dataset
 from OutputData import OutputData
 from sklearn.preprocessing import StandardScaler
 
+"""
+The classes of this module implement pre- and postprocessing of the training
+and evaluation data of a neural network (see class NeuralNetwork).
+
+Note that none of those data processors creates new dataset or OutputData 
+instances. They do only modify the content of given dataset or OutputData
+instances
+"""
+
 
 class BoundProcessor:
+    """
+    Bound-processors pre-process the values in the bounds-array stocked in a
+    given dataset instance.
 
+    This abstract class has several implementations (BoundProcessorAddConst,
+    BoundProcessorNormalise).
+    """
     def compute_parameters(self, data):
+        """
+        Arguments
+        ---------
+        data : dataset instance
+        """
+        pass
+
+    def activate(self):
+        """
+        Activates processor. Only activated processors will be taken into
+        account by the training and prediction methods of NeuralNetwork.
+        """
+        pass
+
+    def is_activated(self) -> bool:
         pass
 
     def pre_process(self, data):
+        """
+        Arguments
+        ---------
+        data : dataset instance
+        """
         pass
 
 
 class BoundProcessorAddConst(BoundProcessor):
+    """
+    Implementation of BoundProcessor.
 
+    Adds a certain number of constants (1) at the end of each RHS stocked in a
+    given dataset instance.
+
+    Attributes
+    ----------
+    number_of_const : int
+        number of constant to be added at the end of each RHS, 1 by default
+    """
     def __init__(self, number_of_const=1):
         self.number_of_const = number_of_const
+        self.activated = False
+
+    def activate(self):
+        self.activated = True
+
+    def is_activated(self):
+        return self.activated
 
     def compute_parameters(self, data):
         return
@@ -41,22 +93,33 @@ def add_const(data, number_of_const=1):
     """
     n = data.size()
     const_matrix = np.ones((n, number_of_const))
-    processed_data = dataset(np.hstack((data.get_RHS(), const_matrix)), data.get_solutions())
-    return processed_data
+    data.set_RHS(np.hstack((data.get_RHS(), const_matrix)))
 
 
 class BoundProcessorNormalise(BoundProcessor):
+    """
+    Implementation of BoundProcessor.
+
+    Computes mean and deviation of the RHS stocked in a given dataset instance constraint
+    by constraint and saves their values. Then normalises by subtracting the respective
+    mean and dividing by the respective deviation constraint by constraint.
+    """
 
     def __init__(self):
         self.scaler = StandardScaler()
+        self.activated = False
+
+    def activate(self):
+        self.activated = True
+
+    def is_activated(self):
+        return self.activated
 
     def compute_parameters(self, data):
+        """Computes mean(i) and dev(i) for all i in data.RHS and saves them."""
         self.scaler.fit(data.get_RHS())
 
     def pre_process(self, data):
-        """
-        Normalises the RHS stocked in data.RHS constraint by constraint to mean 0 and deviation 1.
-        """
         new_RHS = self.scaler.transform(data.get_RHS())
         data.set_RHS(new_RHS)
 
@@ -89,34 +152,75 @@ def apply_linear_on_bounds(data, a, b):
     apply_on_solutions(data, lambda x: a * x + b)
 
 
-
-
 class SolutionProcessor:
+    """
+    Bound-processors pre-process the values in the solutions-array stocked in a
+    given dataset instance and post-processes the values stocked in the solutions-
+    and predictions-arrays of the OutputData instance created by a NeuralNetwork
+    after prediction on the given dataset instance.
+
+    This abstract class has several implementations (SolutionProcessorNormalise,
+    SolutionProcessorLinearMean, SolutionProcessorLinearMax).
+    """
+    def activate(self) -> bool:
+        """
+        Activates processor. Only activated processors will be taken into
+        account by the training and prediction methods of NeuralNetwork.
+        """
+        pass
+
+    def is_activated(self):
+        pass
 
     def compute_parameters(self, data):
+        """
+        Arguments
+        ---------
+        data : dataset instance
+        """
         pass
 
     def pre_process(self, data):
+        """
+        Arguments
+        ---------
+        data : dataset instance
+        """
         pass
 
     def post_process(self, data):
+        """
+        Arguments
+        ---------
+        data = OutputData instance
+        """
         pass
 
 
 class SolutionProcessorNormalise(SolutionProcessor):
-    # The solution array of dimensions (n,1) has to be reshaped to (1,n),
-    # since the scaler always scales on the features axis (axis=1).
+    """
+    Implementation of SolutionProcessor.
 
+    Computes mean m and deviation d of the solutions stocked in a given dataset instance
+    and saves their values. Normalises all other datasets by subtracting m and dividing
+    by d.
+    """
     def __init__(self):
         self.scaler = StandardScaler()
+        self.activated = False
+
+    def activate(self):
+        self.activated = True
+
+    def is_activated(self):
+        return self.activated
 
     def compute_parameters(self, data):
+        # The solution array of dimensions (n,1) has to be reshaped to (1,n),
+        # since the scaler always scales on the features axis (axis=1).
         self.scaler.fit(data.get_solutions().reshape(-1, 1))
 
     def pre_process(self, data):
-        """
-        Normalises the solutions stocked in data.solutions to mean 0 and deviation 1.
-        """
         new_solutions = self.scaler.transform(data.get_solutions().reshape(-1, 1))
         data.set_solutions(new_solutions)
 
@@ -138,7 +242,6 @@ def apply_on_solutions(solutions, f):
     """
     for i in range(len(solutions)):
         solutions[i] = f(solutions[i])
-    return solutions
 
 
 def apply_linear_on_solutions(solutions, a, b):
@@ -151,18 +254,24 @@ def apply_linear_on_solutions(solutions, a, b):
     a : float
     b : float
     """
-    return apply_on_solutions(solutions, lambda x: a * x + b)
+    apply_on_solutions(solutions, lambda x: a * x + b)
 
 
 class SolutionProcessorLinearMean(SolutionProcessor):
     """
-    Linear preprocessing that transforms the solutions of a dataset instance so that their
-    mean is 0.5 and all values are between 0 and 1.
+    Linear pre-processing that transforms the solutions of a dataset
+    instance such that their mean is 0.5 and all values are between 0 and 1.
     """
-
     def __init__(self):
         self.a = 0
         self.b = 0
+        self.activated = False
+
+    def activate(self):
+        self.activated = True
+
+    def is_activated(self):
+        return self.activated
 
     def compute_parameters(self, data):
         mean_value = np.mean(data.get_solutions())
@@ -171,36 +280,36 @@ class SolutionProcessorLinearMean(SolutionProcessor):
         self.b = - mean_value / (2.1 * max_abs) + 0.5
 
     def pre_process(self, data):
-        solutions = data.get_solutions()
-        new_solutions = apply_linear_on_solutions(solutions, self.a, self.b)
-        data.set_solutions(new_solutions)
+        apply_linear_on_solutions(data.get_solutions(), self.a, self.b)
 
     def post_process(self, data):
-        solutions = data.get_solutions()
-        predictions = data.get_predictions()
-        new_solutions = apply_linear_on_solutions(solutions, 1/self.a, -self.b/self.a)
-        new_predictions = apply_linear_on_solutions(predictions, 1/self.a, -self.b/self.a)
-        data.set_solutions(new_solutions)
-        data.set_predictions(new_predictions)
+        apply_linear_on_solutions(data.get_solutions(), 1/self.a, -self.b/self.a)
+        apply_linear_on_solutions(data.get_predictions(), 1/self.a, -self.b/self.a)
 
 
 class SolutionProcessorLinearMax(SolutionProcessor):
-
+    """
+    Linear pre-processing that divides all values in the solutions-array
+    of a given dataset instance by the max of their absolute values. Thus all values
+    are between 0 and 1 after pre-processing.
+    """
     def __init__(self):
         self.max = 0
+        self.activated = False
+
+    def activate(self):
+        self.activated = True
+
+    def is_activated(self):
+        return self.activated
 
     def compute_parameters(self, data):
-        self.max = 1 / np.max(abs(data.get_solutions()))
+        print(data.get_solutions())
+        self.max = 1 / np.max(np.abs(data.get_solutions()))
 
     def pre_process(self, data):
-        solutions = data.get_solutions()
-        new_solutions = apply_linear_on_solutions(solutions, self.max, 0)
-        data.set_solutions(new_solutions)
+        apply_linear_on_solutions(data.get_solutions(), self.max, 0)
 
     def post_process(self, data):
-        solutions = data.get_solutions()
-        predictions = data.get_predictions()
-        new_solutions = apply_linear_on_solutions(solutions, 1 / self.max, 0)
-        new_predictions = apply_linear_on_solutions(predictions, 1 / self.max, 0)
-        data.set_solutions(new_solutions)
-        data.set_predictions(new_predictions)
+        apply_linear_on_solutions(data.get_solutions(), 1 / self.max, 0)
+        apply_linear_on_solutions(data.get_predictions(), 1 / self.max, 0)

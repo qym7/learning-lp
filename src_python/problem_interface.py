@@ -84,6 +84,7 @@ class Problem:
         """True if problem is feasible."""
         pass
 
+
 class Problem_factory:
 
     def get_problem_instance(self) -> Problem:
