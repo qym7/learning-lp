@@ -23,7 +23,7 @@ if __name__ == '__main__':
         Analyser.plot2D_sol_fct_of_RHS()
 
     if True:
-        path = 'D:\repository\learning-lp\data\Generated_problems\problem_rte_1.lp'
+        path = 'D:\\repository\learning-lp\data\Generated_problems\problem_rte_1.lp'
 
         bound_file_name1 = "Nb=100_dev=0_C1_RHS.csv"
         sol_file_name1 = "Nb=100_dev=0_C1_sol.csv"

@@ -137,6 +137,7 @@ class DatasetAnalyser:
             plt.clf()
         plt.plot(self.bounds, self.solutions, 'bo')
         plt.legend(["exact solutions"], loc="upper left")
+        plt.show()
 
         if save is True:
             new_path = os.path.join("." if path is None else path, name)
@@ -225,6 +226,7 @@ class DataAnalyser:
         plt.plot(self.bounds, self.solutions, 'bo')
         plt.plot(self.bounds, self.predictions, 'ro')
         plt.legend(["exact solutions", "predictions"], loc="upper left")
+        plt.show()
 
         if save is True:
             if name is None:
