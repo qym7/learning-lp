@@ -29,7 +29,7 @@ if __name__ == '__main__':
         """Setting training parameters"""
 
         layers = [30000]
-        epochs = 50
+        epochs = 3
         validation_split = 0.3
 
         """Creating neural network."""
@@ -37,7 +37,7 @@ if __name__ == '__main__':
         network = NeuralNetwork()
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise(), BoundProcessorAddConst()])
-        network.add_solution_processors([SolutionProcessorLinearMax()])
+        network.add_solution_processors([SolutionProcessorNormalise()])
 
         """Training neural network."""
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     if False:
 
         layer_size_list = [30000]
-        data_size_list = [3, 5, 10, 100, 1000, 10000, 50000]
+        data_size_list = [3, 5, 10, 100, 1000]
 
         prediction_set_size = 100
 

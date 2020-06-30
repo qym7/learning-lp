@@ -304,7 +304,6 @@ class SolutionProcessorLinearMax(SolutionProcessor):
         return self.activated
 
     def compute_parameters(self, data):
-        print(data.get_solutions())
         self.max = 1 / np.max(np.abs(data.get_solutions()))
 
     def pre_process(self, data):

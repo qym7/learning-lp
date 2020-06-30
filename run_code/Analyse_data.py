@@ -4,25 +4,27 @@ from DataAnalyser import DatasetAnalyser
 
 if __name__ == '__main__':
 
-    if False:
-        bound_file_name = sys.argv[1]
-        sol_file_name = sys.argv[2]
-
-        data = load_csv(bound_file_name, sol_file_name)
-
-        Analyser = DatasetAnalyser(data)
-        Analyser.plot2D_sol_fct_of_RHS()
-
-    if False:
-
-        file_name = sys.argv[1]
-
-        data = load_csv_single_file(file_name)
-
-        Analyser = DatasetAnalyser(data)
-        Analyser.plot2D_sol_fct_of_RHS()
-
     if True:
+
+        path = sys.argv[1]
+        bound_file_name = sys.argv[2]
+        sol_file_name = sys.argv[3]
+
+        data = load_csv(bound_file_name, sol_file_name, path=path)
+
+        Analyser = DatasetAnalyser(data)
+        Analyser.plot2D_sol_fct_of_RHS(save=True, name="test_plot")
+
+    if False:
+        path = sys.argv[1]
+        file_name = sys.argv[2]
+
+        data = load_csv_single_file(file_name, path=path)
+
+        Analyser = DatasetAnalyser(data)
+        Analyser.plot2D_sol_fct_of_RHS()
+
+    if False:
         path = 'D:\\repository\learning-lp\data\Generated_problems\problem_rte_1.lp'
 
         bound_file_name1 = "Nb=100_dev=0_C1_RHS.csv"

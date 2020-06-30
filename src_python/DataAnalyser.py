@@ -137,11 +137,16 @@ class DatasetAnalyser:
             plt.clf()
         plt.plot(self.bounds, self.solutions, 'bo')
         plt.legend(["exact solutions"], loc="upper left")
-        plt.show()
+
+        path = os.path.join("." if path is None else path, "Solution_curves")
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         if save is True:
-            new_path = os.path.join("." if path is None else path, name)
+            new_path = os.path.join(path, name)
             plt.savefig(new_path)
+
+        plt.show()
 
 
 class OutputDataAnalyser:
@@ -226,12 +231,18 @@ class DataAnalyser:
         plt.plot(self.bounds, self.solutions, 'bo')
         plt.plot(self.bounds, self.predictions, 'ro')
         plt.legend(["exact solutions", "predictions"], loc="upper left")
-        plt.show()
+
+        path = os.path.join("." if path is None else path, "Performance_plots")
+
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         if save is True:
             if name is None:
-                new_path = os.path.join("." if path is None else path, self.analyser_name)
+                new_path = os.path.join(path, self.analyser_name)
                 plt.savefig(new_path)
             else:
-                new_path = os.path.join("." if path is None else path, name)
+                new_path = os.path.join(path, name)
                 plt.savefig(new_path)
+
+        plt.show()

@@ -234,6 +234,9 @@ class dataset:
             or two separate files
         """
         import csv
+        if path is not None:
+            if not os.path.exists(path):
+                os.makedirs(path)
         if single_file:
             reshaped_sol = np.reshape(self.get_solutions(), (self.size(), 1))
             content = np.concatenate((self.get_RHS(), reshaped_sol), axis=1)
