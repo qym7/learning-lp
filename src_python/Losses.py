@@ -6,7 +6,7 @@ from tensorflow.keras.losses import Loss
 """Module implements different loss functions."""
 
 
-class RelativeLogarithmicError(Loss):
+class MeanLogarithmicError(Loss):
     def call(self, y_true, y_pred):
         y_pred = ops.convert_to_tensor_v2(y_pred)
         y_true = math_ops.cast(y_true, y_pred.dtype)

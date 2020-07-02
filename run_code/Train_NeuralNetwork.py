@@ -5,7 +5,7 @@ from NeuralNetwork import NeuralNetwork
 from DataProcessor import *
 from DataAnalyser import *
 from LearningRateSchedulers import *
-from Losses import RelativeLogarithmicError
+from Losses import MeanLogarithmicError
 from problem_generator import problem_generator
 from problem_interface import Problem, Problem_factory
 from problem_cplex import Cplex_Problem_Factory
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise(), BoundProcessorAddConst()])
         network.add_solution_processors([SolutionProcessorLinearMax()])
-        # network.set_loss(RelativeLogarithmicError())
+        # network.set_loss(MeanLogarithmicError())
 
         """Training neural network."""
 
