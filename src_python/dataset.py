@@ -337,7 +337,7 @@ def load_pickle(file_name, path=None):
     return data
 
 
-def load_csv(file_RHS, file_sol, path=None):
+def load_csv(file_RHS, file_sol, path=None, delimiter=None):
     """
     Loads the content of two csv files into a dataset instance.
 
@@ -355,22 +355,24 @@ def load_csv(file_RHS, file_sol, path=None):
         name of file containing a list of solutions
     """
     import csv
+    if delimiter is None:
+        delimiter = ";"
     RHS_list = []
     solutions = []
     csv_path = os.path.join("." if path is None else path, file_RHS)
     with open(csv_path, "r") as csv_RHS:
-        reader = csv.reader(csv_RHS)
+        reader = csv.reader(csv_RHS, delimiter=delimiter)
         for row in reader:
             RHS_list.append([float(e) for e in row])
     sol_path = os.path.join("." if path is None else path, file_sol)
     with open(sol_path, "r") as csv_sol:
-        reader = csv.reader(csv_sol)
+        reader = csv.reader(csv_sol, delimiter=delimiter)
         for row in reader:
             solutions.append(float(row[0]))
     return dataset(RHS_list, solutions)
 
 
-def load_csv_single_file(file, path=None):
+def load_csv_single_file(file, path=None, delimiter=None):
     """
     Loads the content of a csv file into a dataset instance.
 
@@ -385,12 +387,18 @@ def load_csv_single_file(file, path=None):
         name of file
     """
     import csv
+    if delimiter is None:
+        delimiter = ";"
     content = []
     csv_path = os.path.join("." if path is None else path, file)
     with open(csv_path, "r") as csv_RHS:
-        reader = csv.reader(csv_RHS)
+        reader = csv.reader(csv_RHS, delimiter=delimiter)
         for row in reader:
             content.append([float(e) for e in row])
-    RHS_list = content[:-1]
-    solutions = content[-1]
+    nb = len(content)
+    RHS_list = nb * [None]
+    solutions = nb * [None]
+    for i in range(nb):
+        RHS_list[i] = content[i][:-1]
+        solutions[i] = content[i][-1]
     return dataset(RHS_list, solutions)

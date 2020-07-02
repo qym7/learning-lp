@@ -1,8 +1,11 @@
 import sys
+import tensorflow as tf
 from dataset import load_csv
 from NeuralNetwork import NeuralNetwork
 from DataProcessor import *
 from DataAnalyser import *
+from LearningRateSchedulers import *
+from Losses import RelativeLogarithmicError
 from problem_generator import problem_generator
 from problem_interface import Problem, Problem_factory
 from problem_cplex import Cplex_Problem_Factory
@@ -18,34 +21,38 @@ if __name__ == '__main__':
 
         path = sys.argv[1]
 
-        bound_file_name = sys.argv[2]
-        sol_file_name = sys.argv[3]
-        data = load_csv(bound_file_name, sol_file_name, path=path)
+        file_name = sys.argv[2]
+        data = load_csv_single_file(file_name, path=path)
 
-        pred_bound_file_name = sys.argv[4]
-        pred_sol_file_name = sys.argv[5]
-        data_for_prediction = load_csv(pred_bound_file_name, pred_sol_file_name, path=path)
+        pred_file_name = sys.argv[3]
+        data_for_prediction = load_csv_single_file(pred_file_name, path=path)
 
         """Setting training parameters"""
 
-        layers = [30000]
-        epochs = 3
+        depth = 1
+        layers = [100 for i in range(depth)]
+        epochs = 120
         validation_split = 0.3
+
+        """Setting callbacks"""
+
+        callback = tf.keras.callbacks.LearningRateScheduler(scheduler_opt_on_model_1_100_1)
 
         """Creating neural network."""
 
-        network = NeuralNetwork()
+        network = NeuralNetwork(file_name="test_network_1_100_1_")
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise(), BoundProcessorAddConst()])
-        network.add_solution_processors([SolutionProcessorNormalise()])
+        network.add_solution_processors([SolutionProcessorLinearMax()])
+        network.set_loss(RelativeLogarithmicError())
 
         """Training neural network."""
 
-        network.train_with(data, epochs, validation_split)
+        network.train_with(data, epochs, validation_split, callbacks=[callback])
 
         """Saving model."""
 
-        network.save_model("test_network")
+        network.save_model()
 
         """Predicting solutions on data_for_prediction."""
 
@@ -123,3 +130,8 @@ if __name__ == '__main__':
                 """Analysing network's performance."""
 
                 DataAnalyser(data_for_prediction, Output).performance_plot_2D(save=True)
+
+
+
+
+

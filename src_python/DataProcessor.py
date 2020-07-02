@@ -124,32 +124,97 @@ class BoundProcessorNormalise(BoundProcessor):
         data.set_RHS(new_RHS)
 
 
-def apply_on_bounds(data, f):
+def apply_on_bounds(bounds, f):
     """
     Applies the function f to every element in data.RHS.
 
     Arguments
     ---------
-    data : dataset instance
+    bounds : numpy array
     f : a real function
     """
-    RHS_list = data.get_RHS()
-    for i in range(data.size()):
-        RHS_list[i] = f(RHS_list[i])
-    data.set_RHS(RHS_list)
+    for i in range(len(bounds)):
+        for j in range(len(bounds[0])):
+            bounds[i][j] = f(bounds[i][j])
 
 
-def apply_linear_on_bounds(data, a, b):
+def apply_linear_on_bounds(bounds, a, b):
     """
     Applies the linear transformation x -> a * x + b to every element of data.RHS.
 
     Arguments
     ---------
-    data : a dataset instance
+    bounds : float list or numpy array
     a : float
     b : float
     """
-    apply_on_solutions(data, lambda x: a * x + b)
+    apply_on_bounds(bounds, lambda x: a * x + b)
+
+
+def apply_second_deg_on_bounds(bounds, a, b, c):
+    """
+    Applies the linear transformation x -> a * x^2 + b * x + c to every element of data.RHS.
+
+    Arguments
+    ---------
+    bounds : float list or numpy array
+    a : float
+    b : float
+    c : float
+    """
+    apply_on_bounds(bounds, lambda x: a * x * x + b * x + c)
+
+
+class BoundProcessorSecondDeg(BoundProcessor):
+    """
+    Processor that applies quadratic function on all bound vectors stocked
+    in a given dataset instance.
+    """
+    def __init__(self, a, b, c, dev=None, avg=None):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.dev = dev
+        self.avg = avg
+        self.activated = False
+
+    def activate(self):
+        self.activated = True
+
+    def is_activated(self):
+        return self.activated
+
+    def compute_parameters(self, data):
+        return
+
+    def pre_process(self, data):
+        bounds = data.get_RHS()
+        apply_second_deg_on_bounds(bounds, self.a, self.b, self.c)
+        apply_linear_on_bounds(bounds, self.dev, self.avg)
+
+
+class BoundProcessorApplyFunction(BoundProcessor):
+    """
+    Processor that applies given function on all bound vectors stocked
+    in a given dataset instance. Rather used for plots than pre-
+    processing before training.
+    """
+    def __init__(self, function):
+        self.function = function
+        self.activated = False
+
+    def activate(self):
+        self.activated = True
+
+    def is_activated(self):
+        return self.activated
+
+    def compute_parameters(self, data):
+        return
+
+    def pre_process(self, data):
+        bounds = data.get_RHS()
+        apply_on_bounds(bounds, self.function)
 
 
 class SolutionProcessor:
@@ -237,7 +302,7 @@ def apply_on_solutions(solutions, f):
 
     Arguments
     ---------
-    solutions : float list
+    solutions : float list or numpy array
     f : a real function
     """
     for i in range(len(solutions)):
@@ -250,7 +315,7 @@ def apply_linear_on_solutions(solutions, a, b):
 
     Arguments
     ---------
-    solutions : float list
+    solutions : float list or numpy array
     a : float
     b : float
     """

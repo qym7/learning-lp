@@ -50,7 +50,10 @@ class OutputData:
         self.predictions.set_solutions(new_predictions)
 
     def get_analyser_name(self):
-        return self.used_network.get_analyser_name()
+        if self.used_network is not None:
+            return self.used_network.get_analyser_name()
+        else:
+            return None
 
     def size(self):
         """

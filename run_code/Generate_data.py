@@ -7,7 +7,9 @@ from DataAnalyser import DatasetAnalyser
 
 if __name__ == '__main__':
 
-    if False:
+    if True:
+
+        number_list = [1000, 10000, 50000]
 
         nb_prob = int(sys.argv[1])
         nb_cons = int(sys.argv[2])
@@ -26,13 +28,15 @@ if __name__ == '__main__':
         else:
             vars_to_vary = sys.argv[4 + nb_prob + nb_cons:]
 
-        Number = 10
         Deviation = 0
 
-        data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
-                                 save=False)
+        for N in number_list:
+            Number = N
 
-        DatasetAnalyser(data).plot2D_sol_fct_of_RHS()
+            data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
+                                     save=True, single_file=True)
+
+            #DatasetAnalyser(data).plot2D_sol_fct_of_RHS()
 
     if False:
 
@@ -46,7 +50,7 @@ if __name__ == '__main__':
             data = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
                                      save=True, single_file=True)
 
-    if True:
+    if False:
         """Generates data for test in Analyse_data.py. """
 
         prob_list = ["problem_rte_1.lp"]
