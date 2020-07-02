@@ -44,7 +44,7 @@ if __name__ == '__main__':
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise(), BoundProcessorAddConst()])
         network.add_solution_processors([SolutionProcessorLinearMax()])
-        network.set_loss(RelativeLogarithmicError())
+        # network.set_loss(RelativeLogarithmicError())
 
         """Training neural network."""
 
