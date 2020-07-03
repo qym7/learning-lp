@@ -5,7 +5,8 @@ from NeuralNetwork import NeuralNetwork
 from DataProcessor import *
 from DataAnalyser import *
 from LearningRateSchedulers import *
-from Losses import MeanLogarithmicError
+from Losses import MeanLogarithmicError, SymmetricMeanAbsolutePercentageError
+from CustomCallbacks import EscapeLocalMinima
 from problem_generator import problem_generator
 from problem_interface import Problem, Problem_factory
 from problem_cplex import Cplex_Problem_Factory
@@ -36,7 +37,7 @@ if __name__ == '__main__':
 
         """Setting callbacks"""
 
-        callback = tf.keras.callbacks.LearningRateScheduler(scheduler_opt_on_model_1_100_1)
+        callback = EscapeLocalMinima(scheduler_opt_on_model_1_100_1, considered_epochs=3, threshold=4e-3)
 
         """Creating neural network."""
 
@@ -44,7 +45,7 @@ if __name__ == '__main__':
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise(), BoundProcessorAddConst()])
         network.add_solution_processors([SolutionProcessorLinearMax()])
-        # network.set_loss(MeanLogarithmicError())
+        network.set_loss(MeanLogarithmicError())
 
         """Training neural network."""
 
