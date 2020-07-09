@@ -1,4 +1,5 @@
 import pickle
+import numpy as np
 from problem_interface import Problem, Problem_factory
 from problem_cplex import Cplex_Problem_Factory
 from Problem_xpress import Xpress_Problem_Factory
@@ -25,12 +26,14 @@ class Selector:
         when generating new problems. (All linear optimisation problems in prob_list should have an equal
         amount of variables with equal names and in the same order.)
     """
-    def __init__(self, prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory()):
+    def __init__(self, prob_list, cons_to_vary=None, vars_to_vary=None,
+                 factory: Problem_factory = Cplex_Problem_Factory(), determine_cons_to_vary = False):
         self.prob_list = prob_list
         self.factory = factory
         self.content = None
         self.cons_to_vary = cons_to_vary
         self.vars_to_vary = vars_to_vary
+        self.determine_cons_to_vary = determine_cons_to_vary
 
     def get_prob_list(self):
         return self.prob_list
@@ -85,7 +88,12 @@ class Selector:
         assert isinstance(self.prob_list[0], str), "Files do not contain linear optimisation problems."
         try:
             problem = self.factory.read_problem_from_file(self.prob_list[0])
-            cons_to_vary = self.read_cons_to_vary(problem)
+            if self.cons_to_vary is None and self.determine_cons_to_vary:
+                cons_to_vary = self.calculate_cons_to_vary(problem)
+            elif self.cons_to_vary is not None:
+                cons_to_vary = self.read_cons_to_vary(problem)
+            else:
+                cons_to_vary = self.cons_to_vary
             vars_to_vary = self.read_vars_to_vary(problem)
             nb = len(self.prob_list)
             RHS_list = nb * [None]
@@ -99,6 +107,32 @@ class Selector:
             raise Exception("Files do not contain linear optimisation problems.")
 
         self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, name_list)
+
+    def calculate_cons_to_vary(self, problem):
+        nb = len(self.prob_list)
+        if nb == 1:
+            return None
+        problem.read(self.prob_list[0])
+        rhs = problem.get_RHS(all_cons=True)
+        nb_constraints = len(rhs)
+        constraints_max = rhs
+        constraints_min = rhs
+        for j in range(1, nb):
+            problem.read(self.prob_list[j])
+            rhs = problem.get_RHS(all_cons=True)
+            for i in range(nb_constraints):
+                if rhs[i] > constraints_max[i]:
+                    constraints_max[i] = rhs[i]
+                if rhs[i] < constraints_min[i]:
+                    constraints_min[i] = rhs[i]
+        constraints_max = np.array(constraints_max)
+        constraints_min = np.array(constraints_min)
+        constraints_range = constraints_max - constraints_min
+        cons_to_vary = []
+        for i in range(len(constraints_range)):
+            if constraints_range[i] != 0:
+                cons_to_vary.append(i)
+        return cons_to_vary
 
     def read_cons_to_vary(self, problem):
         cons_names = problem.get_constraint_names()
@@ -138,7 +172,8 @@ class Selector:
         return vars_to_vary
 
 
-def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory()):
+def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory(),
+            determine_cons_to_vary=False):
     """
     The function extract converts the content of a list of problems given as an argument to
     the format required by the class lin_opt_pbs in problem_generator.py and returns the result.
@@ -158,13 +193,15 @@ def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_fa
         when generating new problems. (All linear optimisation problems in prob_list should have an equal
         amount of variables with equal names and in the same order.)
     factory : Problem_factory instance (see in problem_interface.py)
+    determine_cons_to_vary : bool
+        if True cons_to_vary are determined automatically
 
     returns
     -------
     content :
         the content of prob_list in the format required by the class lin_opt_pbs in problem_generator.py.
     """
-    selector = Selector(prob_list, cons_to_vary, vars_to_vary, factory)
+    selector = Selector(prob_list, cons_to_vary, vars_to_vary, factory, determine_cons_to_vary=determine_cons_to_vary)
     selector.fill_content()
     content = selector.get_content()
     return content
@@ -188,4 +225,3 @@ if __name__ == '__main__':
     problem_file = 'petit_probleme.lp'
     Content = extract(problem_file)
     print(Content)
-

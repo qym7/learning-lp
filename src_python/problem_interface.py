@@ -10,7 +10,7 @@ class Problem:
         """Loads problem from file."""
         pass
 
-    def get_RHS(self, cons_to_vary):
+    def get_RHS(self, cons_to_vary=None, all_cons=False):
         """
         Returns the RHS of the linear optimisation problem.
 
@@ -18,6 +18,8 @@ class Problem:
         ---------
         cons_to_vary : int list
             indices of RHS to be returned
+        all_cons : bool
+            when True, all constraints are returned
 
         Returns
         -------

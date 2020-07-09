@@ -285,7 +285,7 @@ def give_name(N, dev, cons_to_vary=None, vars_to_vary=None):
 
 
 def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory(),
-                      save=False, single_file=False, path=None, name=None):
+                      save=False, single_file=False, determine_cons_to_vary=False, path=None, name=None):
     """
     The function problem_generator generates an instance of dataset
     with N random RHS, based on a chosen linear optimization problem,
@@ -316,6 +316,8 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     single_file : bool
         states whether self.RHS and self.solutions are saved in a single file
         or two separate files (see dataset.to_csv)
+    determine_cons_to_vary : bool
+        if True cons_to_vary are determined automatically
     path :
         indicates where csv should be saved if save is True
     name : str
@@ -343,7 +345,8 @@ def problem_generator(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Pr
     return data
 
 
-def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: Problem_factory = Cplex_Problem_Factory()):
+def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary,
+                        factory: Problem_factory = Cplex_Problem_Factory(), determine_cons_to_vary=False):
     """
     The function problem_generator_y is an adapted version of problem_generator
     which can be used as callback function while training a neural network
@@ -351,7 +354,7 @@ def problem_generator_y(prob_list, N, dev, cons_to_vary, vars_to_vary, factory: 
 
     For a more detailed description, see problem_generator.
     """
-    cont = extract(prob_list, cons_to_vary, vars_to_vary, factory)
+    cont = extract(prob_list, cons_to_vary, vars_to_vary, factory, determine_cons_to_vary=determine_cons_to_vary)
     prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3])
     prob_root.set_deviation(dev)
 

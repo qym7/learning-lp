@@ -16,7 +16,7 @@ class Xpress_problem(Problem):
         """Loads problem from file."""
         self.content.read(filename)
 
-    def get_RHS(self, cons_to_vary):
+    def get_RHS(self, cons_to_vary=None, all_cons=False):
         """
         Returns the RHS of the linear optimisation problem.
 
@@ -24,13 +24,18 @@ class Xpress_problem(Problem):
         ---------
         cons_to_vary : int list
             indices of RHS to be returned
+        all_cons : bool
+            when True, all constraints are returned
 
         Returns
         -------
         rhs : float list
         """
         rhs = []
-        if cons_to_vary is None:
+        if all_cons:
+            self.content.getrhs(rhs, 0, self.content.attributes.rows - 1)
+            return rhs
+        elif cons_to_vary is None:
             return rhs
         else:
             for elem in cons_to_vary:

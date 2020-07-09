@@ -16,7 +16,7 @@ class Cplex_problem(Problem):
         """Loads problem from file."""
         self.content.read(filename)
 
-    def get_RHS(self, cons_to_vary):
+    def get_RHS(self, cons_to_vary=None, all_cons=False):
         """
         Returns the RHS of the linear optimisation problem.
 
@@ -24,12 +24,17 @@ class Cplex_problem(Problem):
         ---------
         cons_to_vary : int list
             indices of RHS to be returned
+        all_cons : bool
+            when True, all constraints are returned
 
         Returns
         -------
         rhs : float list
         """
-        return self.content.linear_constraints.get_rhs(cons_to_vary)
+        if all_cons:
+            return self.content.linear_constraints.get_rhs()
+        else:
+            return self.content.linear_constraints.get_rhs(cons_to_vary)
 
     def set_RHS(self, rhs):
         """

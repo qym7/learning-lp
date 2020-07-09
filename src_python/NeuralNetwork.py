@@ -5,6 +5,7 @@ from DataProcessor import *
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from time import time
 
 
 class NeuralNetwork:
@@ -260,7 +261,7 @@ class NeuralNetwork:
         evaluation = self.model.evaluate(data.get_RHS(), data.get_solutions())
         return evaluation
 
-    def predict(self, data):
+    def predict(self, data, print_time=True):
         """
         Applies network on a given dataset instance and returns predictions of the solutions
         of the linear optimisation problems.
@@ -284,9 +285,13 @@ class NeuralNetwork:
         -------
         object_to_analyze : OutputData instance
             containing predicted solutions and theoretical solutions
+        print_time : True
+            states whether time network took for prediction should be printed
         """
         self.compile_model()
         new_data = data.copy()
+
+        begin = time()
 
         self.pre_process_data(new_data)
 
@@ -294,6 +299,12 @@ class NeuralNetwork:
                                        self.model.predict(new_data.get_RHS()).flatten())
 
         self.post_process_data(object_to_analyze)
+
+        end = time()
+
+        if print_time:
+            print(end - begin)
+
         object_to_analyze.add_used_network(self)
 
         return object_to_analyze
