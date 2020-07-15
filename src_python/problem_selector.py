@@ -3,6 +3,9 @@ import numpy as np
 from problem_interface import Problem, Problem_factory
 from problem_cplex import Cplex_Problem_Factory
 from Problem_xpress import Xpress_Problem_Factory
+from GenerationMode import GenerationModeClassic, GenerationMode, \
+    GenerationModeMasterSlaveContinuous, GenerationModeMasterSlaveDiscreet
+import os
 
 
 class Selector:
@@ -26,14 +29,17 @@ class Selector:
         when generating new problems. (All linear optimisation problems in prob_list should have an equal
         amount of variables with equal names and in the same order.)
     """
-    def __init__(self, prob_list, cons_to_vary=None, vars_to_vary=None,
-                 factory: Problem_factory = Cplex_Problem_Factory(), determine_cons_to_vary = False):
+    def __init__(self, prob_list, factory: Problem_factory, mode: GenerationMode,
+                 path=None, cons_to_vary=None, vars_to_vary=None, vertices=None, determine_cons_to_vary=False):
         self.prob_list = prob_list
+        self.path = path
         self.factory = factory
         self.content = None
         self.cons_to_vary = cons_to_vary
         self.vars_to_vary = vars_to_vary
+        self.vertices = vertices
         self.determine_cons_to_vary = determine_cons_to_vary
+        self.generation_mode = mode
 
     def get_prob_list(self):
         return self.prob_list
@@ -44,8 +50,8 @@ class Selector:
     def get_content(self):
         return self.content
 
-    def set_content(self, problem, RHS_list, cons_to_vary, vars_to_vary, name_list):
-        self.content = problem, RHS_list, cons_to_vary, vars_to_vary, name_list
+    def set_content(self, problem, RHS_list, cons_to_vary, vars_to_vary, vertices, name_list):
+        self.content = problem, RHS_list, cons_to_vary, vars_to_vary, vertices, name_list
 
     def give_names(self):
         n = len(self.prob_list)
@@ -87,26 +93,16 @@ class Selector:
         """
         assert isinstance(self.prob_list[0], str), "Files do not contain linear optimisation problems."
         try:
-            problem = self.factory.read_problem_from_file(self.prob_list[0])
-            if self.cons_to_vary is None and self.determine_cons_to_vary:
-                cons_to_vary = self.calculate_cons_to_vary(problem)
-            elif self.cons_to_vary is not None:
-                cons_to_vary = self.read_cons_to_vary(problem)
-            else:
-                cons_to_vary = self.cons_to_vary
-            vars_to_vary = self.read_vars_to_vary(problem)
-            nb = len(self.prob_list)
-            RHS_list = nb * [None]
+            problem = self.factory.read_problem_from_file(os.path.join("." if self.path is None else self.path,
+                                                                       self.prob_list[0]))
             name_list = self.prob_list
-            for i in range(nb):
-                problem.read(self.prob_list[i])
-                constraints = problem.get_RHS(cons_to_vary)
-                rhs = format_RHS(constraints, cons_to_vary)
-                RHS_list[i] = rhs
+            new_problem, RHS_list, cons_to_vary, self.vars_to_vary = \
+                self.generation_mode.generate_RHS_list(self, problem, self.path)
+            vars_to_vary = self.read_vars_to_vary(new_problem)
         except:
             raise Exception("Files do not contain linear optimisation problems.")
 
-        self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, name_list)
+        self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, self.vertices, name_list)
 
     def calculate_cons_to_vary(self, problem):
         nb = len(self.prob_list)
@@ -171,13 +167,90 @@ class Selector:
                                 "the variable names were given in the wrong order.")
         return vars_to_vary
 
+    def generate_RHS_cons_to_vary_classic(self, problem, path=None):
+
+        if self.cons_to_vary is None and self.determine_cons_to_vary:
+            cons_to_vary = self.calculate_cons_to_vary(problem)
+        elif self.cons_to_vary is not None:
+            cons_to_vary = self.read_cons_to_vary(problem)
+        else:
+            cons_to_vary = self.cons_to_vary
+
+        nb = len(self.prob_list)
+        RHS_list = nb * [None]
+
+        for i in range(nb):
+            name = self.prob_list[i]
+            if path is not None:
+                name = os.path.join(path, name)
+            problem.read(name)
+            constraints = problem.get_RHS(cons_to_vary)
+            rhs = format_RHS(constraints, cons_to_vary)
+            RHS_list[i] = rhs
+
+        return problem, RHS_list, cons_to_vary, self.vars_to_vary
+
+    def generate_RHS_cons_to_vary_possible_vals(self, problem, path=None):
+
+        name = self.prob_list[2]
+        new_path = os.path.join("." if path is None else path, name)
+        sto = open(new_path, "r")
+
+        cons_to_vary = None
+        RHS_list = []
+
+        counter = 0
+        nb_lines = 0
+        for line in sto:
+            nb_lines += 1
+        var_name = None
+        possible_vals = []
+        weights = []
+
+        sto = open(new_path, "r")
+
+        for line in sto:
+            if 1 < counter < nb_lines - 1:
+                line_cont = line.split()
+
+                if var_name is None:
+                    var_name = line_cont[1]
+                    cons_to_vary = [var_name]
+                    possible_vals.append(float(line_cont[2]))
+                    weights.append(float(line_cont[4]))
+                elif line_cont[1] == var_name:
+                    possible_vals.append(float(line_cont[2]))
+                    weights.append(float(line_cont[4]))
+                else:
+                    var_name = line_cont[1]
+                    cons_to_vary.append(var_name)
+                    RHS_list.append([possible_vals.copy(), weights.copy()])
+                    possible_vals = [float(line_cont[2])]
+                    weights = [float(line_cont[4])]
+
+            counter += 1
+
+        RHS_list.append([possible_vals.copy(), weights.copy()])
+
+        self.cons_to_vary = cons_to_vary
+        cons_to_vary = self.read_cons_to_vary(problem)
+
+        master = self.factory.read_problem_from_file(os.path.join("." if path is None else path,
+                                                                  self.prob_list[1]))
+        vars_to_vary = master.get_variable_names()
+
+        return master, RHS_list, cons_to_vary, vars_to_vary
+
 
 def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory(),
-            determine_cons_to_vary=False):
+            determine_cons_to_vary=False, path=None, mode: GenerationMode = GenerationModeClassic(), vertices=None):
     """
     The function extract converts the content of a list of problems given as an argument to
     the format required by the class lin_opt_pbs in problem_generator.py and returns the result.
 
+                    weights = []
+                    possible_vals.append(line_cont[2])
+                    weights.append(line_cont[4])
     (See description of fill_content, method of Selector)
 
     Arguments
@@ -195,13 +268,18 @@ def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_fa
     factory : Problem_factory instance (see in problem_interface.py)
     determine_cons_to_vary : bool
         if True cons_to_vary are determined automatically
+    path : str
+        path to problem files
+    mode : GenerationMode subclass instance
+        indicates format of problems in prob_list and how new problems are to be generated
 
     returns
     -------
     content :
         the content of prob_list in the format required by the class lin_opt_pbs in problem_generator.py.
     """
-    selector = Selector(prob_list, cons_to_vary, vars_to_vary, factory, determine_cons_to_vary=determine_cons_to_vary)
+    selector = Selector(prob_list, cons_to_vary=cons_to_vary, vars_to_vary=vars_to_vary, factory=factory,
+                        determine_cons_to_vary=determine_cons_to_vary, mode=mode, vertices=vertices, path=path)
     selector.fill_content()
     content = selector.get_content()
     return content

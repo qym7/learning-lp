@@ -1,15 +1,19 @@
 import sys
+import os
+import numpy as np
 from problem_generator import problem_generator
 from problem_interface import Problem, Problem_factory
 from problem_cplex import Cplex_Problem_Factory
 from Problem_xpress import Xpress_Problem_Factory
 from DataAnalyser import DatasetAnalyser
+from GenerationMode import GenerationModeClassic, GenerationMode, \
+    GenerationModeMasterSlaveContinuous, GenerationModeMasterSlaveDiscreet
 
 if __name__ == '__main__':
 
-    if True:
+    if False:
 
-        number_list = [1000, 10000, 50000]
+        number_list = [50000]
 
         nb_prob = int(sys.argv[1])
         nb_cons = int(sys.argv[2])
@@ -64,3 +68,21 @@ if __name__ == '__main__':
 
         data2 = problem_generator(prob_list, Number, Deviation, cons_to_vary, vars_to_vary, Xpress_Problem_Factory(),
                                   save=True, name="the_same_again")
+
+    if True:
+
+        number_list = [50000]
+        Deviation = 0
+
+        path = sys.argv[1]
+        prob_list = sys.argv[2:5]
+
+        for N in number_list:
+            Number = N
+
+            data = problem_generator(prob_list, Number, Deviation, factory=Xpress_Problem_Factory(),
+                                     save=True, single_file=True, mode=GenerationModeMasterSlaveDiscreet(),
+                                     find_path=path,
+                                     vertices=np.array([[12, 0, 0, 0], [0, 12, 0, 0], [0, 120/7, 0, 0],
+                                                       [0, 8, 4, 0], [0, 0, 6, 6], [0, 0, 0, 12], [0, 0, 0, 30]]))
+

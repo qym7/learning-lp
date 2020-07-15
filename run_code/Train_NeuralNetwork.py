@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
         """Analysing network's performance."""
 
-        DataAnalyser(data_for_prediction, Output).performance_plot_2D(save=True)
+        #DataAnalyser(data_for_prediction, Output).performance_plot_2D(save=True)
 
     if False:
 
