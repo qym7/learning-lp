@@ -49,7 +49,7 @@ class NeuralNetwork:
     history : tensorflow keras History instance
         learning history of neural network
     """
-    def __init__(self, model=None, file_name=None):
+    def __init__(self, model=None, file_name=None, input_names=None):
         self.model = tf.keras.Sequential() if model is None else model
         self.loss = "mean_absolute_percentage_error"
         self.optimizer = "Adam"
@@ -60,6 +60,7 @@ class NeuralNetwork:
         self.bound_processing = []
         self.solutions_processing = []
         self.history = None
+        self.input_names = input_names
 
     def basic_nn(self, list_neurons=None, last_activation=None):
         """
@@ -416,6 +417,166 @@ class NeuralNetwork:
         path = os.path.join("." if path is None else path, "Trained_networks", name)
         self.model.save(path)
 
+    def graph_save(self, name=None, path=None, light_mode=False):
+        """
+        Saves the model in file with .model format.
+
+        Arguments
+        ---------
+        name : str
+            name of the new file. If name is None, the file name will be self.name. Else self.name
+            will be reset to name.
+        path : str
+            path to file
+        light_mode : bool
+            if True, file is stocked in more compact format
+        """
+        if self.input_names is None:
+            raise Exception("Set input_names or save in another format.")
+
+        layers = self.model.layers
+        nb_layers = len(layers)
+        nb_input = len(self.input_names)
+
+        name_layers = name + "_layers.model"
+        name_activations = name + "_activations.model"
+        file_layers = open(os.path.join("." if path is None else path, name_layers), "w")
+        file_activations = open(os.path.join("." if path is None else path, name_activations), "w")
+
+        file_layers.write("Layer" + (7 * " ") + "Neuron" + (7 * " ") + "Connected_with" + (7 * " ") + "Weight\n")
+        file_activations.write("Layer" + (7 * " ") + "Neuron" + (7 * " ") + "Output_Activation\n")
+
+        if light_mode:
+
+            file_layers.write("Input\n")
+            file_activations.write("Input\n")
+
+            layer = layers[0]
+            weights = layer.get_weights()
+            nb_bias = len(weights[0]) - nb_input
+
+            file_layers.write((12 * " ") + "Bias0_{}\n".format(0))
+            file_activations.write((12 * " ") + "Bias0_{}\n".format(0))
+            file_activations.write((25 * " ") + "Linear\n")
+
+            nb_conn = len(weights[0][0])
+
+            for i in range(nb_conn):
+                file_layers.write((25 * " ") + "Neuron1_{}".format(i) +
+                                  ((12 - int(np.log10(max(i, 1)))) * " ") + str(weights[1][i]) + "\n")
+
+            for i in range(nb_bias):
+                file_layers.write((12 * " ") + "Bias0_{}\n".format(i + 1))
+                file_activations.write((12 * " ") + "Bias0_{}\n".format(i + 1))
+                file_activations.write((25 * " ") + "Linear\n")
+                for j in range(nb_conn):
+                    file_layers.write((25 * " ") + "Neuron1_{}".format(j) +
+                                      ((12 - int(np.log10(max(1, j)))) * " ") + str(weights[0][i][j]) + "\n")
+
+            for i in range(nb_input):
+                file_layers.write((12 * " ") + self.input_names[i] + "\n")
+                file_activations.write((12 * " ") + self.input_names[i] + "\n")
+                file_activations.write((25 * " ") + "Linear\n")
+                for j in range(nb_conn):
+                    file_layers.write((25 * " ") + "Neuron1_{}".format(j) +
+                                      ((12 - int(np.log10(max(1, j)))) * " ") + str(weights[0][i + nb_bias][j]) + "\n")
+
+            for i in range(1, nb_layers):
+                layer = layers[i]
+                weights = layer.get_weights()
+                nb_neurons = len(weights[0])
+                nb_conn = len(weights[0][0])
+
+                file_layers.write("Layer{}\n".format(i))
+                file_activations.write("Layer{}\n".format(i))
+
+                file_layers.write((12 * " ") + "Bias{}_0\n".format(i))
+                file_activations.write((12 * " ") + "Bias{}_0\n".format(i))
+                file_activations.write((25 * " ") + "Relu\n")
+
+                for j in range(nb_conn):
+                    file_layers.write((25 * " ") + "Neuron{}_{}".format(i + 1, j) +
+                                      ((12 - int(np.log10(max(1, j))) - int(np.log10(max(1, i + 1)))) * " ")
+                                      + str(weights[1][j]) + "\n")
+
+                for j in range(nb_neurons):
+                    file_layers.write((12 * " ") + "Neuron{}_{}\n".format(i, j))
+                    file_activations.write((12 * " ") + "Neuron{}_{}\n".format(i, j))
+                    file_activations.write((25 * " ") + "Relu\n")
+
+                    for k in range(nb_conn):
+                        file_layers.write((25 * " ") + "Neuron{}_{}".format(i + 1, k) +
+                                          ((12 - int(np.log10(max(k, 1))) - int(np.log10(max(1, i + 1)))) * " ")
+                                          + str(weights[0][j][k]) + "\n")
+
+            file_layers.write("Output\n")
+            file_layers.write((12 * " ") + "Neuron{}_0\n".format(nb_layers))
+
+            file_activations.write("Output\n")
+            file_activations.write((12 * " ") + "Neuron{}_0\n".format(nb_layers))
+            file_activations.write((25 * " ") + "Linear\n")
+
+        else:
+
+            layer = layers[0]
+            weights = layer.get_weights()
+
+            nb_bias = len(weights[0]) - nb_input
+            nb_conn = len(weights[0][0])
+
+            for i in range(nb_conn):
+                file_activations.write("Input" + (7 * " ") + "Bias0_0" + (6 * " ") + "Linear\n")
+                file_layers.write("Input" + (7 * " ") + "Bias0_0" + (6 * " ") + "Neuron1_{}".format(i) +
+                                  ((12 - int(np.log10(max(i, 1)))) * " ") + str(weights[1][i]) + "\n")
+
+            for i in range(nb_bias):
+                file_activations.write("Input" + (7 * " ") + "Bias0_{}".format(i + 1) + (6 * " ") + "Linear\n")
+                for j in range(nb_conn):
+                    file_layers.write("Input" + (7 * " ") + "Bias0_{}".format(i + 1) + (6 * " ") +
+                                      "Neuron1_{}".format(j) +
+                                      ((12 - int(np.log10(max(1, j)))) * " ") + str(weights[0][i][j]) + "\n")
+
+            for i in range(nb_input):
+                elem = self.input_names[i]
+                length = len(elem)
+                file_activations.write("Input" + (7 * " ") + elem + ((13 - length) * " ") + "Linear\n")
+                for j in range(nb_conn):
+                    file_layers.write("Input" + (7 * " ") + elem + ((13 - length) * " ") +
+                                      "Neuron1_{}".format(j) +
+                                      ((12 - int(np.log10(max(1, j)))) * " ") + str(weights[0][i][j]) + "\n")
+
+            for i in range(1, nb_layers):
+                layer = layers[i]
+                weights = layer.get_weights()
+                nb_neurons = len(weights[0])
+                nb_conn = len(weights[0][0])
+
+                file_activations.write("Layer{}".format(i) + ((6 - int(np.log10(max(1, i)))) * " ") +
+                                       "Bias{}_0".format(i) + ((6 - int(np.log10(max(1, i)))) * " ") + "Relu\n")
+
+                for j in range(nb_conn):
+                    file_layers.write("Layer{}".format(i) + ((6 - int(np.log10(max(1, i)))) * " ") +
+                                      "Bias{}_0".format(i) + ((6 - int(np.log10(max(1, i)))) * " ") +
+                                      "Neuron{}_{}".format(i + 1, j) +
+                                      ((12 - int(np.log10(max(1, j))) - int(np.log10(max(1, i+1)))) * " ")
+                                      + str(weights[1][j]) + "\n")
+
+                for j in range(nb_neurons):
+                    file_activations.write("Layer{}".format(i) + ((6 - int(np.log10(max(1, i)))) * " ")
+                                           + "Neuron{}_{}".format(i, j) +
+                                           ((4 - int(np.log10(max(1, i))) - int(np.log10(max(1, j)))) * " ") + "Relu\n")
+
+                    for k in range(nb_conn):
+                        file_layers.write("Layer{}".format(i) + ((6 - int(np.log10(max(1, i)))) * " ") +
+                                          "Neuron{}_{}".format(i, j) +
+                                          ((4 - int(np.log10(max(1, i))) - int(np.log10(max(1, j)))) * " ")
+                                          + "Neuron{}_{}".format(i + 1, k) +
+                                          ((12 - int(np.log10(max(1, k))) - int(np.log10(max(1, i + 1)))) * " ")
+                                          + str(weights[0][j][k]) + "\n")
+
+            file_layers.write("Output" + (6 * " ") + "Neuron{}_0\n".format(nb_layers))
+            file_activations.write("Output" + (6 * " ") + "Neuron{}_0".format(nb_layers) + (4 * " ") + "Linear\n")
+            
     def get_details(self):
         """
         Prints all the details of the network.
@@ -423,7 +584,7 @@ class NeuralNetwork:
         self.model.summary()
 
 
-def load_model(file_name, path=None):
+def load_model(file_name, path=None, input_names=None):
     """
     Loads a neural network from a file into a NeuralNetwork instance.
 
@@ -439,9 +600,12 @@ def load_model(file_name, path=None):
        path to file
     file_name : str
        name of file containing neural_network
+    input_names : str list
+        names of constraints that were varied to create the data the network
+        was trained on
     """
     path = os.path.join("." if path is None else path, file_name)
     new_model = tf.keras.models.load_model(path)
-    network = NeuralNetwork(new_model, file_name)
+    network = NeuralNetwork(new_model, file_name, input_names=input_names)
     network.is_compiled()
     return network
