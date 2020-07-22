@@ -54,7 +54,7 @@ class RHS:
         """
         return len(self.content)
 
-    def save_csv(self, name, path=None):
+    def save_csv(self, name, input_names, path=None):
         """
         Saves content in a file with format csv.
 
@@ -64,11 +64,15 @@ class RHS:
             name of the new file
         path : str
             path to file
+        input_names : str
+            names of constraints that were varied to create the data the network
+            was trained on
         """
         import csv
         full_name = name + ".csv"
         csv_path = os.path.join("." if path is None else path, full_name)
         with open(csv_path, 'w', newline='') as file_RHS:
+            file_RHS.write(input_names)
             writer = csv.writer(file_RHS, delimiter=';')
             writer.writerows(self.content)
 
@@ -157,14 +161,18 @@ class dataset:
         (see class RHS)
     solutions : float list or numpy array
         (see class solutions)
+    input_names : str
+        names of constraints that were varied to create the data the network
+        was trained on
     """
-    def __init__(self, RHS_list, solutions_list):
+    def __init__(self, RHS_list, solutions_list, input_names=None):
         self.RHS = RHS(RHS_list)
         self.solutions = solutions(solutions_list)
         s1, s2 = self.solutions.size(), self.RHS.size()
         if s1 != s2:
             print("{} != {}".format(s1, s2))
         assert s1 == s2, "RHS and solutions do not have the same size"
+        self.input_names = input_names
 
     def get_solutions(self):
         """Returns the solutions as an array."""
@@ -181,6 +189,9 @@ class dataset:
     def set_solutions(self, new_solutions):
         assert len(new_solutions) == self.size()
         self.solutions.set_solutions(new_solutions)
+
+    def get_input_names(self):
+        return self.input_names
 
     def size(self):
         """
@@ -234,6 +245,13 @@ class dataset:
             or two separate files
         """
         import csv
+
+        nb_inputs = len(self.input_names)
+        name_str = self.input_names[0]
+
+        for i in range(1, nb_inputs):
+            name_str = name_str + ";" + self.input_names[i]
+
         if path is not None:
             if not os.path.exists(path):
                 os.makedirs(path)
@@ -243,10 +261,11 @@ class dataset:
             full_name = name + ".csv"
             csv_path = os.path.join("." if path is None else path, full_name)
             with open(csv_path, 'w', newline='') as file_cont:
+                file_cont.write(name_str + "\n")
                 writer = csv.writer(file_cont, delimiter=';')
                 writer.writerows(content)
         else:
-            self.RHS.save_csv(name + "_RHS", path)
+            self.RHS.save_csv(name + "_RHS", name_str, path)
             self.solutions.save_csv(name + "_sol", path)
 
     def cut(self, proportion_to_cut):
@@ -362,14 +381,19 @@ def load_csv(file_RHS, file_sol, path=None, delimiter=None):
     csv_path = os.path.join("." if path is None else path, file_RHS)
     with open(csv_path, "r") as csv_RHS:
         reader = csv.reader(csv_RHS, delimiter=delimiter)
+        first = True
         for row in reader:
-            RHS_list.append([float(e) for e in row])
+            if first:
+                input_names = row
+                first = False
+            else:
+                RHS_list.append([float(e) for e in row])
     sol_path = os.path.join("." if path is None else path, file_sol)
     with open(sol_path, "r") as csv_sol:
         reader = csv.reader(csv_sol, delimiter=delimiter)
         for row in reader:
             solutions.append(float(row[0]))
-    return dataset(RHS_list, solutions)
+    return dataset(RHS_list, solutions, input_names=input_names)
 
 
 def load_csv_single_file(file, path=None, delimiter=None):
@@ -393,12 +417,17 @@ def load_csv_single_file(file, path=None, delimiter=None):
     csv_path = os.path.join("." if path is None else path, file)
     with open(csv_path, "r") as csv_RHS:
         reader = csv.reader(csv_RHS, delimiter=delimiter)
+        first = True
         for row in reader:
-            content.append([float(e) for e in row])
+            if first:
+                input_names = row
+                first = False
+            else:
+                content.append([float(e) for e in row])
     nb = len(content)
     RHS_list = nb * [None]
     solutions = nb * [None]
     for i in range(nb):
         RHS_list[i] = content[i][:-1]
         solutions[i] = content[i][-1]
-    return dataset(RHS_list, solutions)
+    return dataset(RHS_list, solutions, input_names=input_names)

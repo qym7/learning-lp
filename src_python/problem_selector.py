@@ -1,4 +1,5 @@
 import pickle
+import pypoman
 import numpy as np
 from problem_interface import Problem, Problem_factory
 from problem_cplex import Cplex_Problem_Factory
@@ -37,6 +38,8 @@ class Selector:
         self.content = None
         self.cons_to_vary = cons_to_vary
         self.vars_to_vary = vars_to_vary
+        self.cons_names = None
+        self.vars_names = None
         self.vertices = vertices
         self.determine_cons_to_vary = determine_cons_to_vary
         self.generation_mode = mode
@@ -50,8 +53,8 @@ class Selector:
     def get_content(self):
         return self.content
 
-    def set_content(self, problem, RHS_list, cons_to_vary, vars_to_vary, vertices, name_list):
-        self.content = problem, RHS_list, cons_to_vary, vars_to_vary, vertices, name_list
+    def set_content(self, problem, RHS_list, cons_to_vary, vars_to_vary, vertices, cons_names, vars_names, name_list):
+        self.content = problem, RHS_list, cons_to_vary, vars_to_vary, vertices, cons_names, vars_names, name_list
 
     def give_names(self):
         n = len(self.prob_list)
@@ -96,13 +99,14 @@ class Selector:
             problem = self.factory.read_problem_from_file(os.path.join("." if self.path is None else self.path,
                                                                        self.prob_list[0]))
             name_list = self.prob_list
-            new_problem, RHS_list, cons_to_vary, self.vars_to_vary = \
-                self.generation_mode.generate_RHS_list(self, problem, self.path)
+            new_problem, RHS_list, cons_to_vary, self.vars_to_vary, self.vertices = \
+                self.generation_mode.generate_information(self, problem, self.path)
             vars_to_vary = self.read_vars_to_vary(new_problem)
         except:
             raise Exception("Files do not contain linear optimisation problems.")
 
-        self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, self.vertices, name_list)
+        self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, self.vertices, self.cons_names, self.vars_names,
+                         name_list)
 
     def calculate_cons_to_vary(self, problem):
         nb = len(self.prob_list)
@@ -128,9 +132,27 @@ class Selector:
         for i in range(len(constraints_range)):
             if constraints_range[i] != 0:
                 cons_to_vary.append(i)
+        self.cons_names = problem.get_constraiint_names(cons_to_vary)
+
         return cons_to_vary
 
+    def calculate_vertices(self, problem):
+        if self.vertices is None:
+            matrix = problem.get_matrix()
+            index = len(matrix[0])
+
+            identity = - np.identity(index)
+            zeros = np.zeros(index)
+
+            matrix = np.concatenate((matrix, identity))
+            rhs = np.concatenate((np.array(problem.get_RHS(all_cons=True)), zeros))
+
+            vertices = pypoman.compute_polytope_vertices(matrix, rhs)
+            return vertices
+
     def read_cons_to_vary(self, problem):
+        self.cons_names = self.cons_to_vary
+
         cons_names = problem.get_constraint_names()
         nb_cons = len(cons_names)
 
@@ -150,6 +172,8 @@ class Selector:
         return cons_to_vary
 
     def read_vars_to_vary(self, problem):
+        self.vars_names = self.vars_to_vary
+
         var_names = problem.get_variable_names()
         nb_vars = len(var_names)
         if self.vars_to_vary is None:
@@ -167,7 +191,7 @@ class Selector:
                                 "the variable names were given in the wrong order.")
         return vars_to_vary
 
-    def generate_RHS_cons_to_vary_classic(self, problem, path=None):
+    def generate_information_classic(self, problem, path=None):
 
         if self.cons_to_vary is None and self.determine_cons_to_vary:
             cons_to_vary = self.calculate_cons_to_vary(problem)
@@ -188,9 +212,9 @@ class Selector:
             rhs = format_RHS(constraints, cons_to_vary)
             RHS_list[i] = rhs
 
-        return problem, RHS_list, cons_to_vary, self.vars_to_vary
+        return problem, RHS_list, cons_to_vary, self.vars_to_vary, self.vertices
 
-    def generate_RHS_cons_to_vary_possible_vals(self, problem, path=None):
+    def generate_information_possible_vals(self, problem, path=None):
 
         name = self.prob_list[2]
         new_path = os.path.join("." if path is None else path, name)
@@ -198,6 +222,7 @@ class Selector:
 
         cons_to_vary = None
         RHS_list = []
+        index = 0
 
         counter = 0
         nb_lines = 0
@@ -212,21 +237,21 @@ class Selector:
         for line in sto:
             if 1 < counter < nb_lines - 1:
                 line_cont = line.split()
-
+                index = len(line_cont) - 1
                 if var_name is None:
                     var_name = line_cont[1]
                     cons_to_vary = [var_name]
                     possible_vals.append(float(line_cont[2]))
-                    weights.append(float(line_cont[4]))
+                    weights.append(float(line_cont[index]))
                 elif line_cont[1] == var_name:
                     possible_vals.append(float(line_cont[2]))
-                    weights.append(float(line_cont[4]))
+                    weights.append(float(line_cont[index]))
                 else:
                     var_name = line_cont[1]
                     cons_to_vary.append(var_name)
                     RHS_list.append([possible_vals.copy(), weights.copy()])
                     possible_vals = [float(line_cont[2])]
-                    weights = [float(line_cont[4])]
+                    weights = [float(line_cont[index])]
 
             counter += 1
 
@@ -239,7 +264,9 @@ class Selector:
                                                                   self.prob_list[1]))
         vars_to_vary = master.get_variable_names()
 
-        return master, RHS_list, cons_to_vary, vars_to_vary
+        vertices = self.calculate_vertices(master)
+
+        return master, RHS_list, cons_to_vary, vars_to_vary, vertices
 
 
 def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory(),
@@ -303,3 +330,6 @@ if __name__ == '__main__':
     problem_file = 'petit_probleme.lp'
     Content = extract(problem_file)
     print(Content)
+
+
+

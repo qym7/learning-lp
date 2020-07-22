@@ -48,6 +48,9 @@ class NeuralNetwork:
         solutions before and after training or prediction (see DataProcessor).
     history : tensorflow keras History instance
         learning history of neural network
+    input_names : str
+        names of constraints that were varied to create the data the network
+        was trained on
     """
     def __init__(self, model=None, file_name=None, input_names=None):
         self.model = tf.keras.Sequential() if model is None else model
@@ -62,7 +65,7 @@ class NeuralNetwork:
         self.history = None
         self.input_names = input_names
 
-    def basic_nn(self, list_neurons=None, last_activation=None):
+    def basic_nn(self, list_neurons=None, last_activation=None, specify_input=False, input_shape=None):
         """
         Reinitialises self.model with a given architecture.
 
@@ -80,15 +83,30 @@ class NeuralNetwork:
            activation function of the last layer. Should be a tensorflow activation function
            (class tf.keras.activation or tf.nn) or the name (string) of a tensorflow activation function
            (ex. "relu", "sigmoid" etc.). If None, the last layer is created without activation.
+        specify_input : bool
+            states whether first layer should be built
+        input_shape : int
+            size of input data
         """
-        self.__init__(file_name=self.file_name)
-        if list_neurons is not None:
-            for nb_neurons in list_neurons:
-                self.add_relu(nb_neurons)
-        if last_activation is None:
-            self.add_no_activation(1)
+        self.__init__(file_name=self.file_name, input_names=self.input_names)
+        if specify_input:
+            if list_neurons is not None:
+                nb_layers = len(list_neurons)
+                self.add_input_relu(list_neurons[0], input_shape)
+                for i in range(1, nb_layers):
+                    self.add_relu(list_neurons[i])
+            if last_activation is None:
+                self.add_no_activation(1)
+            else:
+                self.model.add(tf.keras.layers.Dense(1, activation=last_activation))
         else:
-            self.model.add(tf.keras.layers.Dense(1, activation=last_activation))
+            if list_neurons is not None:
+                for nb_neurons in list_neurons:
+                    self.add_relu(nb_neurons)
+            if last_activation is None:
+                self.add_no_activation(1)
+            else:
+                self.model.add(tf.keras.layers.Dense(1, activation=last_activation))
 
     def add_relu(self, nb_neurons):
         """
@@ -100,6 +118,20 @@ class NeuralNetwork:
             number of neurons in the layer to be added
         """
         self.model.add(tf.keras.layers.Dense(nb_neurons, activation="relu"))
+
+    def add_input_relu(self, nb_neurons, input_shape):
+        """
+        Adds layer with a given number of neurons and a relu activation to the network,
+        where input shape is specified. Useful when creating the first layer.
+
+        Arguments
+        ---------
+        nb_neurons : int
+            number of neurons in the layer to be added
+        input_shape : int
+            size of input data
+        """
+        self.model.add(tf.keras.layers.Dense(nb_neurons, input_shape=(input_shape,), activation='relu'))
 
     def add_sigmoid(self, nb_neurons):
         """
@@ -334,6 +366,8 @@ class NeuralNetwork:
         callbacks : list of callback functions
         """
         self.compile_model()
+        self.generate_input_names(initial_data)
+
         data = initial_data.copy()
 
         self.generate_name_for_analyser(data)
@@ -376,6 +410,17 @@ class NeuralNetwork:
         else:
             name = "predictions_network_trained_on_{}.pdf".format(number)
         self.analyser_name = name
+
+    def generate_input_names(self, data):
+        input_names = data.get_input_names()
+        if input_names is None:
+            nb_inp = len(data.get_RHS()[0])
+            names = nb_inp * [None]
+            for i in range(nb_inp):
+                names[i] = "Input{}".format(i)
+            self.input_names = names
+        else:
+            self.input_names = input_names
 
     def save_hdf5(self, name=None, path=None):
         """
@@ -434,17 +479,62 @@ class NeuralNetwork:
         if self.input_names is None:
             raise Exception("Set input_names or save in another format.")
 
+        if name is None:
+            assert self.file_name is not None, "No name :("
+            name = self.file_name
+        else:
+            self.file_name = name
+
         layers = self.model.layers
         nb_layers = len(layers)
         nb_input = len(self.input_names)
 
         name_layers = name + "_layers.model"
         name_activations = name + "_activations.model"
+        name_processing = name + "_processing.model"
         file_layers = open(os.path.join("." if path is None else path, name_layers), "w")
         file_activations = open(os.path.join("." if path is None else path, name_activations), "w")
+        file_processing = open(os.path.join("." if path is None else path, name_processing), "w")
 
         file_layers.write("Layer" + (7 * " ") + "Neuron" + (7 * " ") + "Connected_with" + (7 * " ") + "Weight\n")
         file_activations.write("Layer" + (7 * " ") + "Neuron" + (7 * " ") + "Output_Activation\n")
+
+        add_bias_number_first_layer = 0
+
+        for processor in self.bound_processing:
+
+            if isinstance(processor, BoundProcessorAddConst):
+                add_bias_number_first_layer += processor.number_of_const
+
+            if isinstance(processor, BoundProcessorNormalise):
+                if processor.mean_list is None or len(processor.mean_list.shape) == 0:
+                    mean_list = processor.scaler.mean_
+                    dev_list = processor.scaler.scale_
+                else:
+                    mean_list = processor.mean_list
+                    dev_list = processor.dev_list
+
+                file_processing.write("Input-processing" + (7 * " ") + "Normalisation" + (7 * " ") + "Mean_list"
+                                      + (7 * " "))
+                for elem in mean_list:
+                    file_processing.write(str(elem) + (7 * " "))
+                file_processing.write("\n")
+
+                file_processing.write("Input-processing" + (7 * " ") + "Normalisation" + (7 * " ") + "Dev_list"
+                                      + (8 * " "))
+                for elem in dev_list:
+                    file_processing.write(str(elem) + (7 * " "))
+                file_processing.write("\n")
+
+        if add_bias_number_first_layer > 0:
+            file_processing.write("Input-processing" + (7 * " ") + "Additional_bias" + (5 * " ")
+                                  + str(add_bias_number_first_layer) + "\n")
+
+        for processor in self.solutions_processing:
+
+            if isinstance(processor, SolutionProcessorLinearMax):
+                file_processing.write("Output-processing" + (6 * " ") + "Multiply_by" + (9 * " ") +
+                                      str(processor.max) + "\n")
 
         if light_mode:
 
@@ -479,7 +569,8 @@ class NeuralNetwork:
                 file_activations.write((25 * " ") + "Linear\n")
                 for j in range(nb_conn):
                     file_layers.write((25 * " ") + "Neuron1_{}".format(j) +
-                                      ((12 - int(np.log10(max(1, j)))) * " ") + str(weights[0][i + nb_bias][j]) + "\n")
+                                      ((12 - int(np.log10(max(1, j)))) * " ") +
+                                      str(weights[0][i + nb_bias][j]) + "\n")
 
             for i in range(1, nb_layers):
                 layer = layers[i]
@@ -543,7 +634,7 @@ class NeuralNetwork:
                 for j in range(nb_conn):
                     file_layers.write("Input" + (7 * " ") + elem + ((13 - length) * " ") +
                                       "Neuron1_{}".format(j) +
-                                      ((12 - int(np.log10(max(1, j)))) * " ") + str(weights[0][i][j]) + "\n")
+                                      ((12 - int(np.log10(max(1, j)))) * " ") + str(weights[0][i + nb_bias][j]) + "\n")
 
             for i in range(1, nb_layers):
                 layer = layers[i]
@@ -609,3 +700,121 @@ def load_model(file_name, path=None, input_names=None):
     network = NeuralNetwork(new_model, file_name, input_names=input_names)
     network.is_compiled()
     return network
+
+
+def graph_load(file_layers, file_activations, file_processing, path=None):
+    file_layers_path = os.path.join("." if path is None else path, file_layers)
+    file_activations_path = os.path.join("." if path is None else path, file_activations)
+    file_processing_path = os.path.join("." if path is None else path, file_processing)
+
+    file_l = open(file_layers_path, "r")
+    file_a = open(file_activations_path, "r")
+    file_p = open(file_processing_path, "r")
+
+    weight_list = file_l.readlines()[1:]
+    nb_lines = len(weight_list)
+
+    network = []
+    layer = [None, None]
+    neurons_weights = []
+    bias_weights = []
+    neuron_weights = []
+    first_of_layer = True
+
+    layer_name = None
+    neuron_name = None
+
+    for i in range(nb_lines):
+        line = weight_list[i].split()
+        if layer_name is None:
+            layer_name = line[0]
+            neuron_name = line[1]
+            if neuron_name.startswith("Bias") and first_of_layer:
+                bias_weights.append(float(line[3]))
+            else:
+                neuron_weights.append(float(line[3]))
+        else:
+            if layer_name == line[0]:
+                if neuron_name == line[1]:
+                    if neuron_name.startswith("Bias") and first_of_layer:
+                        bias_weights.append(float(line[3]))
+                    else:
+                        neuron_weights.append(float(line[3]))
+                else:
+                    if first_of_layer:
+                        first_of_layer = False
+                    else:
+                        neurons_weights.append(neuron_weights)
+                    neuron_name = line[1]
+                    neuron_weights = [float(line[3])]
+            else:
+                first_of_layer = True
+                layer_name = line[0]
+                neuron_name = line[1]
+                neurons_weights.append(neuron_weights)
+                layer[0] = np.array(neurons_weights)
+                layer[1] = np.array(bias_weights)
+                network.append(layer)
+                layer = [None, None]
+                neurons_weights = []
+                neuron_weights = []
+                bias_weights = []
+                if neuron_name.startswith("Bias") and first_of_layer:
+                    bias_weights.append(float(line[3]))
+                else:
+                    if len(line) >= 3:
+                        neuron_weights.append(float(line[3]))
+
+    processors = file_p.readlines()
+    nb_proc = len(processors)
+    processor = None
+    boundprocesors = []
+    solutionprocessors = []
+
+    for i in range(nb_proc):
+
+        line = processors[i].split()
+
+        if line[1] == "Normalisation":
+            if line[2] == "Mean_list":
+                mean_list = line[3:]
+                dev_list = processors[i+1].split()[3:]
+                for i in range(len(mean_list)):
+                    mean_list[i] = float(mean_list[i])
+                    dev_list[i] = float(dev_list[i])
+                processor = BoundProcessorNormalise(mean_list, dev_list)
+            else:
+                if line[0] == "Input-processing":
+                    boundprocesors.append(processor)
+                else:
+                    solutionprocessors.append(processor)
+
+        if line[1] == "Additional_bias":
+            processor = BoundProcessorAddConst(number_of_const=int(line[2]))
+            boundprocesors.append(processor)
+
+        if line[1] == "Multiply_by":
+            processor = SolutionProcessorLinearMax()
+            processor.max = float(line[2])
+            solutionprocessors.append(processor)
+
+    nb_layers = len(network)
+    layer_sizes = nb_layers * [None]
+
+    for i in range(nb_layers):
+        size = len(network[i][0])
+        layer_sizes[i] = size
+
+    neural_network = NeuralNetwork(file_name=file_layers[:-12])
+    neural_network.basic_nn(list_neurons=layer_sizes[1:], specify_input=True, input_shape=layer_sizes[0])
+
+    layers = neural_network.model.layers
+
+    for i in range(nb_layers):
+        layers[i].set_weights(network[i])
+
+    neural_network.add_bound_processors(boundprocesors)
+    neural_network.add_solution_processors(solutionprocessors)
+    neural_network.activate_processors()
+
+    return neural_network

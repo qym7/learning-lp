@@ -27,6 +27,16 @@ class Problem:
         """
         pass
 
+    def get_matrix(self):
+        """
+        Returns constraint matrix of the linear optimisation problem.
+
+        Returns
+        -------
+        matrix : float list list
+        """
+        pass
+
     def set_RHS(self, rhs):
         """
         Changes the RHS of the linear optimisation problem to the input.

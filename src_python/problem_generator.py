@@ -417,9 +417,10 @@ def problem_generator(prob_list, N, dev, cons_to_vary=None, vars_to_vary=None,
     prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3], vertices=cont[4], mode=mode)
     prob_root.set_deviation(dev)
 
+    input_names = cont[5] + cont[6]
     sol_list = prob_root.generate_and_solve(N)
     rhs_list = prob_root.extract_RHS()
-    data = dataset(rhs_list, sol_list)
+    data = dataset(rhs_list, sol_list, input_names=input_names)
 
     if save is True:
         if name is None:

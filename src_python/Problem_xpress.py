@@ -4,6 +4,7 @@ Implementation for FICO Xpress of the Problem interface in problem_interface.py.
 
 from problem_interface import Problem, Problem_factory
 import xpress as xp
+import numpy as np
 
 
 class Xpress_problem(Problem):
@@ -34,15 +35,46 @@ class Xpress_problem(Problem):
         rhs = []
         if all_cons:
             self.content.getrhs(rhs, 0, self.content.attributes.rows - 1)
-            return rhs
-        elif cons_to_vary is None:
-            return rhs
-        else:
+        elif cons_to_vary is not None:
             for elem in cons_to_vary:
                 aux = []
                 self.content.getrhs(aux, elem, elem)
                 rhs.append(aux[0])
-            return rhs
+        return rhs
+
+    def get_matrix(self):
+        """
+        Returns constraint matrix of the linear optimisation problem.
+
+        Returns
+        -------
+        matrix : float list list
+        """
+        nb_rows = self.content.attributes.rows
+        nb_cols = self.content.attributes.cols
+
+        names = self.get_variable_names()
+
+        indices = []
+        values = []
+
+        matrix = nb_rows * [None]
+
+        for i in range(nb_rows):
+            row = nb_cols * [None]
+            counter = 0
+            self.content.getrows(mstart=None, mclind=indices, dmatval=values, size=nb_cols, first=i, last=i)
+            non_zeros = len(values)
+
+            for j in range(nb_cols):
+                if counter < non_zeros and names[j] == indices[counter].name.strip():
+                    row[j] = values[counter]
+                    counter += 1
+                else:
+                    row[j] = 0
+            matrix[i] = row
+
+        return np.array(matrix)
 
     def set_RHS(self, rhs):
         """
@@ -55,7 +87,7 @@ class Xpress_problem(Problem):
         """
         self.content.chgrhs(mindex=[i[0] for i in rhs], rhs=[i[1] for i in rhs])
 
-    def get_constraint_names(self):
+    def get_constraint_names(self, cons_to_vary=None):
         """
         Returns list of names of constraints of the linear optimisation problem.
 
@@ -63,11 +95,19 @@ class Xpress_problem(Problem):
         -------
         name list : string list
         """
-        constraints = self.content.getConstraint()
-        nb_cons = len(constraints)
-        name_list = nb_cons * [None]
-        for i in range(nb_cons):
-            name_list[i] = constraints[i].name.strip()
+        if cons_to_vary is None:
+            constraints = self.content.getConstraint()
+            nb_cons = len(constraints)
+            name_list = nb_cons * [None]
+            for i in range(nb_cons):
+                name_list[i] = constraints[i].name.strip()
+        else:
+            constraints = self.content.getConstraint()
+            nb_cons = len(cons_to_vary)
+            name_list = nb_cons * [None]
+            for i in range(nb_cons):
+                name_list[i] = constraints[cons_to_vary[i]].name.strip()
+
         return name_list
 
     def get_variable_names(self):

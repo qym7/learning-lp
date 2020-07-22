@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     if True:
 
-        number_list = [300000]
+        number_list = [100]
         Deviation = 0
 
         path = sys.argv[1]
@@ -82,7 +82,5 @@ if __name__ == '__main__':
 
             data = problem_generator(prob_list, Number, Deviation, factory=Xpress_Problem_Factory(),
                                      save=True, single_file=True, mode=GenerationModeMasterSlaveDiscreet(),
-                                     find_path=path,
-                                     vertices=np.array([[12, 0, 0, 0], [0, 12, 0, 0], [0, 120/7, 0, 0],
-                                                       [0, 8, 4, 0], [0, 0, 6, 6], [0, 0, 0, 12], [0, 0, 0, 30]]))
+                                     find_path=path)
 

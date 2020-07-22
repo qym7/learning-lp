@@ -93,7 +93,7 @@ def add_const(data, number_of_const=1):
     """
     n = data.size()
     const_matrix = np.ones((n, number_of_const))
-    data.set_RHS(np.hstack((data.get_RHS(), const_matrix)))
+    data.set_RHS(np.hstack((const_matrix, data.get_RHS())))
 
 
 class BoundProcessorNormalise(BoundProcessor):
@@ -105,9 +105,11 @@ class BoundProcessorNormalise(BoundProcessor):
     mean and dividing by the respective deviation constraint by constraint.
     """
 
-    def __init__(self):
+    def __init__(self, mean_list=None, dev_list=None):
         self.scaler = StandardScaler()
         self.activated = False
+        self.mean_list = np.array(mean_list)
+        self.dev_list = np.array(dev_list)
 
     def activate(self):
         self.activated = True
@@ -120,8 +122,14 @@ class BoundProcessorNormalise(BoundProcessor):
         self.scaler.fit(data.get_RHS())
 
     def pre_process(self, data):
-        new_RHS = self.scaler.transform(data.get_RHS())
-        data.set_RHS(new_RHS)
+        if self.mean_list is None or len(self.mean_list.shape) == 0:
+            new_RHS = self.scaler.transform(data.get_RHS())
+            data.set_RHS(new_RHS)
+        else:
+            rhs = data.get_RHS()
+            for i in range(len(rhs)):
+                for j in range(len(rhs[0])):
+                    rhs[i][j] = (rhs[i][j] - self.mean_list[j])/self.dev_list[j]
 
 
 def apply_on_bounds(bounds, f):

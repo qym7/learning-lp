@@ -2,7 +2,7 @@
 
 class GenerationMode:
 
-    def generate_RHS_list(self, selector, problem, path=None):
+    def generate_information(self, selector, problem, path=None):
         pass
 
     def choose_vars_random(self, lps):
@@ -14,8 +14,8 @@ class GenerationMode:
 
 class GenerationModeClassic(GenerationMode):
 
-    def generate_RHS_list(self, selector, problem, path=None):
-        return selector.generate_RHS_cons_to_vary_classic(problem, path)
+    def generate_information(self, selector, problem, path=None):
+        return selector.generate_information_classic(problem, path)
 
     def choose_vars_random(self, lps):
         return lps.choose_vars_random()
@@ -26,8 +26,8 @@ class GenerationModeClassic(GenerationMode):
 
 class GenerationModeMasterSlaveDiscreet(GenerationMode):
 
-    def generate_RHS_list(self, selector, problem, path=None):
-        return selector.generate_RHS_cons_to_vary_possible_vals(problem, path)
+    def generate_information(self, selector, problem, path=None):
+        return selector.generate_information_possible_vals(problem, path)
 
     def choose_vars_random(self, lps):
         return lps.choose_vars_random_general_cons()
@@ -38,8 +38,8 @@ class GenerationModeMasterSlaveDiscreet(GenerationMode):
 
 class GenerationModeMasterSlaveContinuous(GenerationMode):
 
-    def generate_RHS_list(self, selector, problem, path=None):
-        return selector.generate_RHS_cons_to_vary_possible_vals(problem, path)
+    def generate_information(self, selector, problem, path=None):
+        return selector.generate_information_possible_vals(problem, path)
 
     def choose_vars_random(self, lps):
         return lps.choose_vars_random_general_cons()

@@ -1,7 +1,7 @@
 import sys
 import tensorflow as tf
 from dataset import load_csv
-from NeuralNetwork import NeuralNetwork, load_model
+from NeuralNetwork import NeuralNetwork, load_model, graph_load
 from DataProcessor import *
 from DataAnalyser import *
 from LearningRateSchedulers import *
@@ -16,7 +16,7 @@ from Problem_xpress import Xpress_Problem_Factory
 
 if __name__ == '__main__':
 
-    if False:
+    if True:
 
         """Loading data from files. File names are given as script parameters."""
 
@@ -30,23 +30,23 @@ if __name__ == '__main__':
 
         """Setting training parameters"""
 
-        depth = 4
-        layers = [(20 - 4 * i) for i in range(depth)]
-        epochs = 120
+        depth = 1
+        layers = [500 for i in range(depth)]
+        epochs = 50
         validation_split = 0.3
 
         """Setting callbacks"""
 
-        callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler_LandS_opt_on_model_1_100_1),
+        callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler_LandS_opt_on_model_1_500_1),
                      tf.keras.callbacks.ModelCheckpoint(filepath="D:\\repository\\learning-lp\\data\\Model_checkpoints",
                                                         save_weights_only=True, verbose=0)]
         #callback = EscapeLocalMinima(scheduler_LandS_opt_on_model_1_100_1, considered_epochs=3, threshold=4e-3)
 
         """Creating neural network."""
 
-        network = NeuralNetwork(file_name="LandS_network_1_20_16_12_8_4_1_")
+        network = NeuralNetwork(file_name="LandS_network_1_500_1_test")
         network.basic_nn(layers)
-        network.add_bound_processors([BoundProcessorNormalise(), BoundProcessorAddConst()])
+        network.add_bound_processors([BoundProcessorNormalise()])
         network.add_solution_processors([SolutionProcessorLinearMax()])
         #network.set_loss(MeanLogarithmicError())
 
@@ -56,7 +56,8 @@ if __name__ == '__main__':
 
         """Saving model."""
 
-        network.save_model()
+        network.graph_save(path="D:\\repository\\learning-lp\\data\\Trained_networks")
+        #network.save_model()
 
         """Predicting solutions on data_for_prediction."""
 
@@ -64,6 +65,7 @@ if __name__ == '__main__':
 
         """Analysing network's performance."""
 
+        print(OutputDataAnalyser(Output).mean_precision_error())
         #DataAnalyser(data_for_prediction, Output).performance_plot_2D(save=True)
 
     if False:
@@ -135,12 +137,29 @@ if __name__ == '__main__':
 
                 DataAnalyser(data_for_prediction, Output).performance_plot_2D(save=True)
 
-    if True:
+    if False:
 
         network = load_model("LandS_network_1_500_1_5e-4", path="D:\\repository\\learning-lp\\data\\Trained_networks",
                              input_names=["S2C5", "S2C6", "S2C7", "X1", "X2", "X3", "X4"])
         network.graph_save("LandS_network_1_500_1_5e-4", path="D:\\repository\\learning-lp\\data\\Trained_networks")
 
+    if False:
+        network = graph_load("LandS_network_1_500_1_test_layers.model", "LandS_network_1_500_1_test_activations.model",
+                             "LandS_network_1_500_1_test_processing.model",
+                             path="D:\\repository\\learning-lp\\data\\Trained_networks")
 
+        network.input_names = ["S2C5", "S2C6", "S2C7", "X1", "X2", "X3", "X4"]
+        #network = load_model("gbd_network_1_500_1_3e-5", path="D:\\repository\\learning-lp\\data\\Trained_networks")
+
+        path = sys.argv[1]
+
+        pred_file_name = sys.argv[3]
+        data_for_prediction = load_csv_single_file(pred_file_name, path=path)
+
+        Output = network.predict(data_for_prediction)
+
+        print(OutputDataAnalyser(Output).mean_precision_error())
+
+        network.graph_save(name="LandS_network_1_500_1_test_copy", path="D:\\repository\\learning-lp\\data\\Trained_networks")
 
 

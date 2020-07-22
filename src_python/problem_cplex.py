@@ -36,6 +36,16 @@ class Cplex_problem(Problem):
         else:
             return self.content.linear_constraints.get_rhs(cons_to_vary)
 
+    def get_matrix(self):
+        """
+        Returns constraint matrix of the linear optimisation problem.
+
+        Returns
+        -------
+        matrix : float list list
+        """
+        return self.content.linear_constraints.get_rows()
+
     def set_RHS(self, rhs):
         """
         Changes the RHS of the linear optimisation problem to the input.
