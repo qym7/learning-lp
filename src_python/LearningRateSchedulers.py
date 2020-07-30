@@ -28,8 +28,11 @@ def scheduler_LandS_opt_on_model_1_500_1(epoch):
         return 0.05
     elif epoch < 18:
         return 0.001
-    else:
+    elif epoch < 28:
         return 0.001 / (epoch - 17)
+    else:
+        return 0.0001 / (epoch - 27)
+
 
 
 def scheduler_gbd_opt_on_model_1_500_1(epoch):
@@ -37,8 +40,13 @@ def scheduler_gbd_opt_on_model_1_500_1(epoch):
         return 0.05
     elif epoch < 6:
         return 0.001
-    else:
+    elif epoch < 18:
         return 0.001 / (epoch - 5)
+    elif epoch < 46:
+        return 0.00008 / ((epoch / 3) - 5)
+    else:
+        return 0.000008 / ((epoch / 3) - 15)
+
 
 
 def scheduler_20term_opt_on_model_1_500_1(epoch):
@@ -46,8 +54,10 @@ def scheduler_20term_opt_on_model_1_500_1(epoch):
         return 0.05
     elif epoch < 8:
         return 0.002 / (1 + (epoch - 1)/7)
-    else:
+    elif epoch < 18:
         return 0.001 / (epoch - 7)
+    else:
+        return 0.0001 / (epoch - 17)
 
 
 def schedulerI(epoch):

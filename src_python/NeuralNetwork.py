@@ -526,6 +526,11 @@ class NeuralNetwork:
                     file_processing.write(str(elem) + (7 * " "))
                 file_processing.write("\n")
 
+            if isinstance(processor, BoundProcessorApplyFunction):
+                if processor.function == np.log10:
+                    file_processing.write("Input-processing" + (7 * " ") + "Logarithmic" + (9 * " ") +
+                                          str(processor.number))
+
         if add_bias_number_first_layer > 0:
             file_processing.write("Input-processing" + (7 * " ") + "Additional_bias" + (5 * " ")
                                   + str(add_bias_number_first_layer) + "\n")
@@ -768,7 +773,7 @@ def graph_load(file_layers, file_activations, file_processing, path=None):
     processors = file_p.readlines()
     nb_proc = len(processors)
     processor = None
-    boundprocesors = []
+    boundprocessors = []
     solutionprocessors = []
 
     for i in range(nb_proc):
@@ -785,13 +790,17 @@ def graph_load(file_layers, file_activations, file_processing, path=None):
                 processor = BoundProcessorNormalise(mean_list, dev_list)
             else:
                 if line[0] == "Input-processing":
-                    boundprocesors.append(processor)
+                    boundprocessors.append(processor)
                 else:
                     solutionprocessors.append(processor)
 
         if line[1] == "Additional_bias":
             processor = BoundProcessorAddConst(number_of_const=int(line[2]))
-            boundprocesors.append(processor)
+            boundprocessors.append(processor)
+
+        if line[1] == "Logarithmic":
+            processor = BoundProcessorApplyFunction(np.log10, int(line[2]))
+            boundprocessors.append(processor)
 
         if line[1] == "Multiply_by":
             processor = SolutionProcessorLinearMax()
@@ -813,7 +822,7 @@ def graph_load(file_layers, file_activations, file_processing, path=None):
     for i in range(nb_layers):
         layers[i].set_weights(network[i])
 
-    neural_network.add_bound_processors(boundprocesors)
+    neural_network.add_bound_processors(boundprocessors)
     neural_network.add_solution_processors(solutionprocessors)
     neural_network.activate_processors()
 

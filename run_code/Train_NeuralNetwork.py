@@ -31,20 +31,20 @@ if __name__ == '__main__':
         """Setting training parameters"""
 
         depth = 1
-        layers = [500 for i in range(depth)]
-        epochs = 50
+        layers = [2000 for i in range(depth)]
+        epochs = 80
         validation_split = 0.3
 
         """Setting callbacks"""
 
-        callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler_LandS_opt_on_model_1_500_1),
+        callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler_20term_opt_on_model_1_500_1),
                      tf.keras.callbacks.ModelCheckpoint(filepath="D:\\repository\\learning-lp\\data\\Model_checkpoints",
                                                         save_weights_only=True, verbose=0)]
         #callback = EscapeLocalMinima(scheduler_LandS_opt_on_model_1_100_1, considered_epochs=3, threshold=4e-3)
 
         """Creating neural network."""
 
-        network = NeuralNetwork(file_name="LandS_network_1_500_1_test")
+        network = NeuralNetwork(file_name="20term_network_1_2000_1")
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise()])
         network.add_solution_processors([SolutionProcessorLinearMax()])
@@ -144,12 +144,9 @@ if __name__ == '__main__':
         network.graph_save("LandS_network_1_500_1_5e-4", path="D:\\repository\\learning-lp\\data\\Trained_networks")
 
     if False:
-        network = graph_load("LandS_network_1_500_1_test_layers.model", "LandS_network_1_500_1_test_activations.model",
-                             "LandS_network_1_500_1_test_processing.model",
+        network = graph_load("LandS_network_1_500_1_layers_3e-6.model", "LandS_network_1_500_1_activations_3e-6.model",
+                             "LandS_network_1_500_1_processing_3e-6.model",
                              path="D:\\repository\\learning-lp\\data\\Trained_networks")
-
-        network.input_names = ["S2C5", "S2C6", "S2C7", "X1", "X2", "X3", "X4"]
-        #network = load_model("gbd_network_1_500_1_3e-5", path="D:\\repository\\learning-lp\\data\\Trained_networks")
 
         path = sys.argv[1]
 
@@ -160,6 +157,5 @@ if __name__ == '__main__':
 
         print(OutputDataAnalyser(Output).mean_precision_error())
 
-        network.graph_save(name="LandS_network_1_500_1_test_copy", path="D:\\repository\\learning-lp\\data\\Trained_networks")
 
 

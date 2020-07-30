@@ -66,7 +66,7 @@ class Selector:
     def fill_content(self):
         """
         The method fill_content converts the content of the linear optimization problems in
-        self.prob_list to the format required by the class lin_opt_pbs ans saves it in self.content.
+        self.prob_list to the format required by the class lin_opt_pbs and saves it in self.content.
 
         More precisely the method checks first of all if the content of prob_list is a string list.
         If that is not the case, an error message will occur. If the content of prob_list is a string
@@ -138,16 +138,17 @@ class Selector:
 
     def calculate_vertices(self, problem):
         if self.vertices is None:
-            matrix = problem.get_matrix()
+            matrix, rhs = problem.get_matrix()
             index = len(matrix[0])
 
             identity = - np.identity(index)
             zeros = np.zeros(index)
 
             matrix = np.concatenate((matrix, identity))
-            rhs = np.concatenate((np.array(problem.get_RHS(all_cons=True)), zeros))
+            rhs = np.concatenate((rhs, zeros))
 
             vertices = pypoman.compute_polytope_vertices(matrix, rhs)
+
             return vertices
 
     def read_cons_to_vary(self, problem):

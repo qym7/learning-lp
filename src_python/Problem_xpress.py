@@ -52,19 +52,31 @@ class Xpress_problem(Problem):
         """
         nb_rows = self.content.attributes.rows
         nb_cols = self.content.attributes.cols
+        nb_e = 0
 
         names = self.get_variable_names()
 
         indices = []
         values = []
+        row_types = []
+        self.content.getrowtype(row_types, 0, nb_rows - 1)
 
-        matrix = nb_rows * [None]
+        for elem in row_types:
+            if elem == 'E':
+                nb_e += 1
+
+        matrix = (nb_rows + nb_e) * [None]
+        rhs = (nb_rows + nb_e) * [None]
+
+        index = 0
 
         for i in range(nb_rows):
-            row = nb_cols * [None]
+            row = np.array(nb_cols * [None])
             counter = 0
             self.content.getrows(mstart=None, mclind=indices, dmatval=values, size=nb_cols, first=i, last=i)
             non_zeros = len(values)
+            elem = []
+            self.content.getrhs(elem, i, i)
 
             for j in range(nb_cols):
                 if counter < non_zeros and names[j] == indices[counter].name.strip():
@@ -72,9 +84,23 @@ class Xpress_problem(Problem):
                     counter += 1
                 else:
                     row[j] = 0
-            matrix[i] = row
 
-        return np.array(matrix)
+            if row_types[i] == 'L':
+                matrix[index] = row
+                rhs[index] = elem[0]
+                index += 1
+            elif row_types[i] == 'G':
+                matrix[index] = -row
+                rhs[index] = -elem[0]
+                index += 1
+            else:
+                matrix[index] = row
+                matrix[index+1] = -row
+                rhs[index] = elem[0]
+                rhs[index+1] = -elem[0]
+                index += 2
+
+        return np.array(matrix), np.array(rhs)
 
     def set_RHS(self, rhs):
         """

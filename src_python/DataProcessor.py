@@ -132,7 +132,7 @@ class BoundProcessorNormalise(BoundProcessor):
                     rhs[i][j] = (rhs[i][j] - self.mean_list[j])/self.dev_list[j]
 
 
-def apply_on_bounds(bounds, f):
+def apply_on_bounds(bounds, f, number=None):
     """
     Applies the function f to every element in data.RHS.
 
@@ -140,8 +140,13 @@ def apply_on_bounds(bounds, f):
     ---------
     bounds : numpy array
     f : a real function
+    number : int
+        if number is specified, only the first number elements of
+        bounds are processed.
     """
-    for i in range(len(bounds)):
+    if number is None:
+        number = len(bounds)
+    for i in range(number):
         for j in range(len(bounds[0])):
             bounds[i][j] = f(bounds[i][j])
 
@@ -206,10 +211,14 @@ class BoundProcessorApplyFunction(BoundProcessor):
     Processor that applies given function on all bound vectors stocked
     in a given dataset instance. Rather used for plots than pre-
     processing before training.
+
+    If attribute number is specified, only the first number elements of
+    each bound vector are processed.
     """
-    def __init__(self, function):
+    def __init__(self, function, number=None):
         self.function = function
         self.activated = False
+        self.number = number
 
     def activate(self):
         self.activated = True
@@ -222,7 +231,7 @@ class BoundProcessorApplyFunction(BoundProcessor):
 
     def pre_process(self, data):
         bounds = data.get_RHS()
-        apply_on_bounds(bounds, self.function)
+        apply_on_bounds(bounds, self.function, self.number)
 
 
 class SolutionProcessor:

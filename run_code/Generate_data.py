@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     if True:
 
-        number_list = [100]
+        number_list = [300000]
         Deviation = 0
 
         path = sys.argv[1]
