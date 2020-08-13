@@ -3,6 +3,7 @@ from problem_generator import problem_generator
 from ProblemTypeCplex import CplexProblemFactory
 from ProblemTypeXpress import XpressProblemFactory
 from GenerationMode import GenerationModeMasterSlaveDiscreet, GenerationModeMasterSlaveContinuous, GenerationModeClassic
+from GenerationModules import GenerationModuleStorm
 
 
 if __name__ == '__main__':
@@ -78,7 +79,8 @@ if __name__ == '__main__':
 
         for N in number_list:
             Number = N
-            mode = GenerationModeMasterSlaveDiscreet(master, problem, sto, use_random_vertices_method=True)
+            mode = GenerationModeMasterSlaveDiscreet(master, problem, sto, use_random_vertices_method=True,
+                                                     modules=[GenerationModuleStorm()])
             data = problem_generator(Number, Deviation, mode=mode, factory=XpressProblemFactory(), save=True,
                                      single_file=True, find_path=path)
 

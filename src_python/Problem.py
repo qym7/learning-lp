@@ -52,7 +52,7 @@ class Domain:
         self.domain_vertices = vertices
 
     def set_approx_domain_box(self, bounds):
-        self.domain_vertices = bounds
+        self.approx_domain_box = bounds
 
     def set_some_vertices(self, vertices):
         self.some_vertices = vertices
@@ -64,7 +64,7 @@ class Domain:
         return self.domain_vertices
 
     def get_approx_domain_box(self):
-        return self.domain_vertices
+        return self.approx_domain_box
 
     def get_some_vertices(self):
         return self.some_vertices
@@ -127,7 +127,7 @@ class Domain:
             else:
                 self.inner_points = []
                 for module in modules:
-                    module.compute_inner_points(self, nb_inner_points)
+                    module.compute_inner_points_non_standard(self, nb_inner_points)
 
 
 class Problem:
@@ -377,8 +377,8 @@ class Problem:
 
     def compute_random_vertex(self, factory=None):
         """
-        Computes a single random vertex of the domain of the linear optimisation problem
-        and returns it.
+        Computes two random vertices of the domain of a linear optimisation problem by
+        minimising and maximising a random scalar product.
 
         Arguments
         ---------
@@ -404,8 +404,13 @@ class Problem:
 
         aux_problem.set_objective(objective)
         aux_problem.solve()
+        lp = aux_problem.get_sol()
 
-        return aux_problem.get_sol()
+        aux_problem.set_objective(-objective)
+        aux_problem.solve()
+        up = aux_problem.get_sol()
+
+        return lp, up
 
     def compute_vertices_poly(self):
         """

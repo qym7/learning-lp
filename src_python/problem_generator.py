@@ -293,19 +293,25 @@ class lin_opt_pbs:
         if self.vars_to_vary is None:
             return []
         else:
+            modules = self.generation_mode.modules
+
             vertices = self.master.get_some_vertices()
-            nb_ver = len(vertices)
             nb_vars = len(self.vars_to_vary)
             nb_conv_comb = nb_vars * 2
 
-            chosen_nb = max(np.random.randint(nb_conv_comb), 2)
-            chosen_ind = random.sample(range(nb_ver), chosen_nb)
-            weights = get_weights_for_convex_comb(chosen_nb)
+            if modules is None:
+                nb_ver = len(vertices)
 
-            comb_ver = chosen_nb * [None]
+                chosen_nb = max(np.random.randint(nb_conv_comb), 2)
+                chosen_ind = random.sample(range(nb_ver), chosen_nb)
+                weights = get_weights_for_convex_comb(chosen_nb)
 
-            for i in range(chosen_nb):
-                comb_ver[i] = vertices[chosen_ind[i]]
+                comb_ver = chosen_nb * [None]
+
+                for i in range(chosen_nb):
+                    comb_ver[i] = vertices[chosen_ind[i]]
+            else:
+                weights, comb_ver = modules[0].add_fixed_vertices_in_random_vertices_method(vertices, nb_conv_comb)
 
             var_values = convex_comb(weights, comb_ver)
             values = nb_vars * [None]
@@ -450,19 +456,26 @@ class lin_opt_pbs:
         self.master.domain.some_vertices. Some vertices can possibly occur more
         then once.
         """
+        nb = 2 * (nb // 2)
         vertices = nb * [None]
 
         print("Start computing vertices:")
 
         begin = time()
-        for i in range(nb):
+        for i in range(nb // 2):
             present = time()
             if (present - begin) > 60:
                 print(i)
                 begin = time()
-            vertices[i] = self.master.compute_random_vertex()
+            vertices[2 * i], vertices[2 * i + 1] = self.master.compute_random_vertex()
 
         self.master.set_some_vertices(vertices)
+
+        modules = self.generation_mode.modules
+
+        if modules is not None:
+            for module in modules:
+                module.compute_additional_vertices(self.master)
 
     def generate_and_solve(self, N):
         """

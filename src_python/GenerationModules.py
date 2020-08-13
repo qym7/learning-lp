@@ -21,8 +21,11 @@ class GenerationModule:
     def compute_inner_points_non_standard(self, problem, nb_inner_point):
         pass
 
+    def add_fixed_vertices_in_random_vertices_method(self, vertices, nb_conv_comb):
+        pass
 
-class GenerationModuleStormInnerPoint(GenerationModule):
+
+class GenerationModuleStorm(GenerationModule):
     """
     GenerationModule to be used when using storm to generate new problems with the inner
     point method.
@@ -114,3 +117,18 @@ class GenerationModuleStormInnerPoint(GenerationModule):
 
         domain.add_inner_points(inner_points)
 
+    def add_fixed_vertices_in_random_vertices_method(self, vertices, nb_conv_comb):
+        nb_ver = len(vertices)
+
+        chosen_nb = max(np.random.randint(nb_conv_comb), 2)
+        chosen_ind = random.sample(range(nb_ver), chosen_nb)
+        weights = get_weights_for_convex_comb(chosen_nb + 7)
+
+        comb_ver = (chosen_nb + 7) * [None]
+
+        for i in range(chosen_nb):
+            comb_ver[i] = vertices[chosen_ind[i]]
+
+        comb_ver[-7:] = vertices[-7:]
+
+        return weights, comb_ver
