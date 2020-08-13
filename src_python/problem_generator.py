@@ -298,8 +298,8 @@ class lin_opt_pbs:
             nb_vars = len(self.vars_to_vary)
             nb_conv_comb = nb_vars * 2
 
-            chosen_nb = np.random.randint(nb_conv_comb)
-            chosen_ind = random.sample(vertices, chosen_nb)
+            chosen_nb = max(np.random.randint(nb_conv_comb), 2)
+            chosen_ind = random.sample(range(nb_ver), chosen_nb)
             weights = get_weights_for_convex_comb(chosen_nb)
 
             comb_ver = chosen_nb * [None]
@@ -311,7 +311,7 @@ class lin_opt_pbs:
             values = nb_vars * [None]
 
             for i in range(nb_vars):
-                values[i] = (self.vars_to_vary[i], var_values[i])
+                values[i] = (self.vars_to_vary[i], var_values[self.vars_to_vary[i]])
 
             return values
 

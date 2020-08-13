@@ -11,13 +11,10 @@ Every Problem instance has a Domain instance as attribute.
 """
 
 from MathFunctions import convex_comb, get_weights_for_convex_comb
-from ProblemTypeInterface import ProblemType
-from ProblemTypeXpress import XpressType
-from ProblemTypeCplex import CplexType
-import xpress as xp
 import numpy as np
 import pypoman
 import random
+import os
 
 
 class Domain:
@@ -81,11 +78,11 @@ class Domain:
     def compute_max_dim(self):
         max_dim = 0
 
-        for elem in self.approx_domain_box:
-            if elem[1] >= max_dim:
-                max_dim = elem[1]
-
-        self.max_dimension = max_dim
+        if self.approx_domain_box is not None:
+            for elem in self.approx_domain_box:
+                if elem[1] >= max_dim:
+                    max_dim = elem[1]
+            self.max_dimension = max_dim
 
     def compute_inner_points(self, nb_inner_points, modules=None):
         """
@@ -378,13 +375,20 @@ class Problem:
         """
         return self.type.is_feasible(self)
 
-    def compute_random_vertex(self):
+    def compute_random_vertex(self, factory=None):
         """
         Computes a single random vertex of the domain of the linear optimisation problem
         and returns it.
+
+        Arguments
+        ---------
+        factory : ProblemFactory instance
+            needed because the method creates an auxiliary Problem instance
         """
-        aux_problem = self.type.create()
-        aux_problem.read(self.file_name)
+        if factory is None:
+            aux_problem = self
+        else:
+            aux_problem = factory.read_problem_from_file(self.file_name)
 
         nb_vars = self.get_number_vars()
         random_vect = nb_vars * [None]

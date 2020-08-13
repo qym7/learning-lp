@@ -4,7 +4,7 @@ Implementation for FICO Xpress of the ProblemType interface in ProblemTypeInterf
 See ProblemTypeInterface.py for further information.
 """
 
-from ProblemTypeInterface import ProblemType, ProblemFactory
+from ProblemTypeInterface import ProblemFactory, ProblemType
 from Problem import Problem
 import xpress as xp
 import numpy as np
@@ -70,9 +70,9 @@ class XpressType(ProblemType):
         -------
         nb_vars : int
         """
-        return problem.content.attributes.vars
+        return problem.content.attributes.cols
 
-    def get_number_cols(self, problem):
+    def get_number_cons(self, problem):
         """
         Returns the number of constraints of the linear optimisation problem.
 
@@ -84,7 +84,7 @@ class XpressType(ProblemType):
         -------
         nb_cols : int
         """
-        return problem.content.attributes.cols
+        return problem.content.attributes.rows
 
     def set_objective(self, problem, obj):
         """
@@ -111,8 +111,8 @@ class XpressType(ProblemType):
         ---------
         problem : problem instance
         """
-        nb_rows = self.get_number_vars(problem)
-        nb_cols = self.get_number_cols(problem)
+        nb_rows = self.get_number_cons(problem)
+        nb_cols = self.get_number_vars(problem)
         nb_e = 0
 
         names = self.get_variable_names(problem)

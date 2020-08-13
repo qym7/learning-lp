@@ -10,7 +10,6 @@ Two implementations exist:
 All methods take a Problem instance as their first argument, that will usually be
 the Problem in which the ProblemType instance is stocked.
 """
-from Problem import Problem
 
 
 class ProblemType:
@@ -292,8 +291,8 @@ class ProblemType:
 
 class ProblemFactory:
 
-    def get_problem_instance(self) -> Problem:
+    def get_problem_instance(self):
         pass
 
-    def read_problem_from_file(self, filename: str, simple_problem=False) -> Problem:
+    def read_problem_from_file(self, filename: str, simple_problem=False):
         pass

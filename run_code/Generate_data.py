@@ -1,7 +1,9 @@
 import sys
 from problem_generator import problem_generator
-from Problem import Xpress_Problem_Factory
-from GenerationMode import GenerationModeMasterSlaveDiscreet
+from ProblemTypeCplex import CplexProblemFactory
+from ProblemTypeXpress import XpressProblemFactory
+from GenerationMode import GenerationModeMasterSlaveDiscreet, GenerationModeMasterSlaveContinuous, GenerationModeClassic
+
 
 if __name__ == '__main__':
 
@@ -65,7 +67,7 @@ if __name__ == '__main__':
 
     if True:
 
-        number_list = [200000]
+        number_list = [300]
         Deviation = 0
 
         path = sys.argv[1]
@@ -76,7 +78,7 @@ if __name__ == '__main__':
 
         for N in number_list:
             Number = N
-
-            data = problem_generator(Number, Deviation, mode=GenerationModeMasterSlaveDiscreet(master, problem, sto,),
-                                     factory=Xpress_Problem_Factory(), save=True, single_file=True, find_path=path)
+            mode = GenerationModeMasterSlaveDiscreet(master, problem, sto, use_random_vertices_method=True)
+            data = problem_generator(Number, Deviation, mode=mode, factory=XpressProblemFactory(), save=True,
+                                     single_file=True, find_path=path)
 

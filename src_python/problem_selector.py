@@ -337,7 +337,7 @@ class Selector:
                                                      simple_problem=self.generation_mode.is_simple)
         vars_to_vary = self.read_vars_to_vary(master, master.get_variable_names())
 
-        master.get_domain_border(all_vars=True)
+        #master.get_domain_border(all_vars=True)
 
         self.content.master = master
         self.content.RHS_list = RHS_list
