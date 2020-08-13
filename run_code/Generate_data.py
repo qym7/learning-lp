@@ -1,13 +1,7 @@
 import sys
-import os
-import numpy as np
 from problem_generator import problem_generator
-from problem_interface import Problem, Problem_factory
-from problem_cplex import Cplex_Problem_Factory
-from Problem_xpress import Xpress_Problem_Factory
-from DataAnalyser import DatasetAnalyser
-from GenerationMode import GenerationModeClassic, GenerationMode, \
-    GenerationModeMasterSlaveContinuous, GenerationModeMasterSlaveDiscreet
+from Problem import Xpress_Problem_Factory
+from GenerationMode import GenerationModeMasterSlaveDiscreet
 
 if __name__ == '__main__':
 
@@ -71,16 +65,18 @@ if __name__ == '__main__':
 
     if True:
 
-        number_list = [300000]
+        number_list = [200000]
         Deviation = 0
 
         path = sys.argv[1]
         prob_list = sys.argv[2:5]
+        problem = prob_list[0]
+        master = prob_list[1]
+        sto = prob_list[2]
 
         for N in number_list:
             Number = N
 
-            data = problem_generator(prob_list, Number, Deviation, factory=Xpress_Problem_Factory(),
-                                     save=True, single_file=True, mode=GenerationModeMasterSlaveDiscreet(),
-                                     find_path=path)
+            data = problem_generator(Number, Deviation, mode=GenerationModeMasterSlaveDiscreet(master, problem, sto,),
+                                     factory=Xpress_Problem_Factory(), save=True, single_file=True, find_path=path)
 

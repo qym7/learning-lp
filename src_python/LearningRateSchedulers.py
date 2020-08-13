@@ -59,6 +59,15 @@ def scheduler_20term_opt_on_model_1_500_1(epoch):
     else:
         return 0.0001 / (epoch - 17)
 
+def scheduler_20term_opt_on_model_input_2000_1000_1(epoch):
+   if epoch == 0:
+       return 0.05
+   elif epoch < 6:
+       return 0.005 / epoch
+   elif epoch < 20:
+       return 0.001
+   else:
+       return 0.001 / (1 + (epoch - 20)/4)
 
 def schedulerI(epoch):
     if epoch < 5:

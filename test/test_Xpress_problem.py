@@ -1,6 +1,6 @@
 import os
 import pytest
-from Problem_xpress import Xpress_problem, Xpress_Problem_Factory
+from Problem import Xpress_problem, Xpress_Problem_Factory
 import xpress as xp
 
 

@@ -1,16 +1,9 @@
 import sys
 import tensorflow as tf
-from dataset import load_csv
-from NeuralNetwork import NeuralNetwork, load_model, graph_load
+from NeuralNetwork import NeuralNetwork
 from DataProcessor import *
 from DataAnalyser import *
 from LearningRateSchedulers import *
-from Losses import MeanLogarithmicError, SymmetricMeanAbsolutePercentageError
-from CustomCallbacks import EscapeLocalMinima
-from problem_generator import problem_generator
-from problem_interface import Problem, Problem_factory
-from problem_cplex import Cplex_Problem_Factory
-from Problem_xpress import Xpress_Problem_Factory
 
 """Run this file to train a neural network."""
 
@@ -30,8 +23,8 @@ if __name__ == '__main__':
 
         """Setting training parameters"""
 
-        depth = 1
-        layers = [2000 for i in range(depth)]
+        depth = 5
+        layers = [20 for i in range(depth)]
         epochs = 80
         validation_split = 0.3
 
@@ -44,7 +37,7 @@ if __name__ == '__main__':
 
         """Creating neural network."""
 
-        network = NeuralNetwork(file_name="20term_network_1_2000_1")
+        network = NeuralNetwork(file_name="20term_network_input_2000_1000_1")
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise()])
         network.add_solution_processors([SolutionProcessorLinearMax()])
@@ -67,6 +60,63 @@ if __name__ == '__main__':
 
         print(OutputDataAnalyser(Output).mean_precision_error())
         #DataAnalyser(data_for_prediction, Output).performance_plot_2D(save=True)
+
+    if False:
+        """Loading data from files. File names are given as script parameters."""
+
+        path = sys.argv[1]
+
+        file_name = sys.argv[2]
+        data = load_csv_single_file(file_name, path=path)
+
+        pred_file_name = sys.argv[3]
+        data_for_prediction = load_csv_single_file(pred_file_name, path=path)
+
+        """Setting training parameters"""
+
+        depth = 1
+        layers = [500 for i in range(depth)]
+        epochs = 80
+        validation_split = 0.3
+        good_enough = 1e-4
+        mape = 1
+
+        """Setting callbacks"""
+
+        callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler_LandS_opt_on_model_1_500_1),
+                     tf.keras.callbacks.ModelCheckpoint(filepath="D:\\repository\\learning-lp\\data\\Model_checkpoints",
+                                                        save_weights_only=True, verbose=0)]
+        #callback = EscapeLocalMinima(scheduler_LandS_opt_on_model_1_100_1, considered_epochs=3, threshold=4e-3)
+
+        while mape >= good_enough:
+
+            """Creating neural network."""
+
+            network = NeuralNetwork(file_name="LandS_network_7_500_1")
+            network.basic_nn(layers)
+            network.add_bound_processors([BoundProcessorNormalise()])
+            network.add_solution_processors([SolutionProcessorLinearMax()])
+            #network.set_loss(MeanLogarithmicError())
+
+            """Training neural network."""
+
+            network.train_with(data, epochs, validation_split, callbacks=callbacks)
+
+            """Predicting solutions on data_for_prediction."""
+
+            Output = network.predict(data_for_prediction)
+
+            """Analysing network's performance."""
+
+            mape = OutputDataAnalyser(Output).mean_precision_error()
+            print(mape)
+            # DataAnalyser(data_for_prediction, Output).performance_plot_2D(save=True)
+
+        """Saving model."""
+
+        network.graph_save(path="D:\\repository\\learning-lp\\data\\Trained_networks")
+        #network.save_model()
+
 
     if False:
 

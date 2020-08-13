@@ -1,5 +1,5 @@
 import os
-from Problem_xpress import Xpress_Problem_Factory
+from Problem import Xpress_Problem_Factory
 from problem_generator import problem_generator
 from dataset import dataset
 

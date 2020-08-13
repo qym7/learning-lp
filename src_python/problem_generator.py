@@ -1,60 +1,68 @@
 """
-The purpose of this code is to provide a user-friendly function
-generating a dataset with N random new RHS from a list of chosen
-linear optimization problems and their N associated solutions.
-The name of this function is "problem_generator".
+Module generates a certain number of linear optimisation problems randomly out of
+a single problem or a list of problems.
 
-For more information see its description of problem_generator.
+It contains the class lin_opt_pbs which implements all methods used for generation.
+When a lin_opt_pbs instance is created, an additional GenerationMode instance must be provided
+to specify the form of the base problems and what methods should be used to generate new
+problems out of them.
+
+Please read the description of the module GenerationMode.py to get a detailed description
+of how the new problems are generated depending on the generation mode you choose to use.
 """
 
 import sys
 import os
 import numpy as np
 from problem_selector import extract
-from problem_interface import Problem, Problem_factory
-from problem_cplex import Cplex_Problem_Factory
-from Problem_xpress import Xpress_Problem_Factory
+from ProblemTypeInterface import ProblemFactory
+from Problem import Problem
 from dataset import dataset, load_csv
 from GenerationMode import GenerationModeClassic, GenerationMode, \
     GenerationModeMasterSlaveContinuous, GenerationModeMasterSlaveDiscreet
+from MathFunctions import get_weights_for_convex_comb, convex_comb
 import random
 from time import time
 
 
 class lin_opt_pbs:
     """
-    lin_opt_pbs is a class representing linear optimization problems.
-    It will be used to generate new linear optimization problems
-    by adding some noise (gaussian) to some chosen coefficients of a given problem.
+    Implements methods to generate new linear optimisation problems out of a single or
+    a list of given problems. For further explanations read description of this module and
+    the module GenerationMode.py.
 
     Attributes
     ----------
-    problem : Problem instance (see problem_interface.py)
+    generation_mode : GenerationMode instance
+        see GenerationMode.py for a detailed description of the different modes available
+    problem : Problem instance (see Problem.py)
         a linear optimisation problem
+    master : Problem instance (see Problem.py)
+        None if generation_mode is not GenerationModeMasterSlaveDiscreet or GenerationModeMasterSlaveContinuous
     RHS_list : (int, float) list list
-        a list of RHS in the format used by cplex.
+        a list of RHS in the format used by most lp solvers.
         The first elements of the tuples represent indices of constraints, so they should
         all be different and never exceed the number of constraints of self.problem.
     generated_RHS : ((int, float) list, (int, float) list) list
         a list of newly created RHS in a particular format.
     dev : float
-        giving the relative deviation of the noise when generating new problems.
+        giving the RELATIVE deviation of the noise when generating new problems with some generation modes.
     cons_to_vary : int list
-        a list of indices of the constraints of the linear optimisation problems that should be affected
-        by the noise when generating new problems.
+        a list of indices of the constraints of self.problem that should vary from one generated
+        problem to another.
     vars_to_vary : int list
         a list of indices of the variables of the linear optimisation problems that should be fixed randomly
         when generating new problems.
     """
-    def __init__(self, problem: Problem, RHS_list, cons_to_vary=None, vars_to_vary=None, vertices=None,
+    def __init__(self, problem: Problem, master: Problem, RHS_list, cons_to_vary=None, vars_to_vary=None,
                  mode: GenerationMode = None):
         self.problem = problem
+        self.master = master
         self.RHS_list = RHS_list
         self.generated_RHS = []
         self.dev = 0
         self.cons_to_vary = cons_to_vary
         self.vars_to_vary = vars_to_vary
-        self.vertices = vertices
         self.generation_mode = mode
 
     def set_problem(self, problem):
@@ -150,17 +158,22 @@ class lin_opt_pbs:
         Generates single random new problem.
 
         More precisely, the method generate_random_RHS generates a single new random problem
-        by adding a gaussian noise to some coefficients of the RHS (= right hand side)
-        of a chosen problem in an instance of lin_opt_pbs. The chosen coefficients are
-        given by self.cons_to_vary.
+        by copying one RHS (= right hand side) in self.RHS_list and modifying some of its coefficients.
+        The chosen coefficients are given by self.cons_to_vary.
 
         In addition, the method fixes some given variables of the linear optimisation
-        problem randomly in a given interval. The chose variables are given by
+        problem randomly such that they verify the problem's constraints. The chosen variables are given by
         self.vars_to_vary.
 
-        The standard deviation of that noise in each variable is computed by multiplying the
-        value that variable takes by the factor dev.
-        Thus the standard deviation is always chosen relative to the variable's value.
+        The way in which the constraints and variables are varied is determined by self.generation_mode.
+
+        To set the variables, self.generation_mode will choose between choose_vars_random_trivial,
+        choose_vars_random_interior_point_method, choose_vars_random_vertices_method and
+        choose_vars_random_convex_comb.
+
+        To modify the constraints, self.generation_mode will choose between choose_constraints_random_discreet,
+        choose_constraints_random_perturbation and choose_constraints_random_continuous.
+
 
         Arguments
         ---------
@@ -176,10 +189,11 @@ class lin_opt_pbs:
         values = self.generation_mode.choose_vars_random(self)
         return [new_rhs, values]
 
-    def choose_vars_random(self):
+    def choose_vars_random_trivial(self):
         """
         Fixes the variables listed in self.vars_to_fix to random values inside
-        their previous bounds.
+        their bounds. Method should only be used if the variables to vary appear
+        in trivial constraints only.
 
         Return
         ------
@@ -197,29 +211,103 @@ class lin_opt_pbs:
                 values[i] = (self.vars_to_vary[i], val)
             return values
 
-    def choose_vars_random_general_cons(self):
-        if self.vertices is None:
+    def choose_vars_random_interior_point_method(self):
+        """
+        Implements the inner point method described at the beginning of GenerationMode.py.
+
+        Method should be used when the base problem is not simple, which means that it is so large
+        that no exhaustive list of its domain's border can be given. If the problem is simple
+        use choose_vars_random_convex_comb instead.
+
+        Return
+        ------
+        values : (int, float) list
+            the indices of the fixed variables and their new values.
+        """
+        matrix, rhs = self.master.get_matrix()
+        bounds = self.master.get_domain_border(all_vars=True, modules=self.generation_mode.modules)
+        inner_points = self.master.get_inner_points()
+        max_dimension = self.master.get_max_dimension()
+
+        if self.vars_to_vary is None:
             return []
         else:
-            nb = len(self.vertices)
-
-            aux = (nb + 1) * [None]
-            aux[0] = 0
-            aux[nb] = 1
-            for i in range(nb - 1):
-                aux[i + 1] = random.random()
-            aux = np.array(aux)
-            aux.sort()
-
-            weights = nb * [None]
+            is_feasible = False
+            nb = self.master.get_number_vars()
+            values = np.array(nb * [None])
+            variables = np.array(nb * [None])
+            rand = np.random.randint(nb)
+            inner_point = inner_points[rand]
             for i in range(nb):
-                weights[i] = aux[i + 1] - aux[i]
-            weights = np.array(weights)
+                val = np.random.uniform(bounds[i][0], bounds[i][1])
+                values[i] = val
+            if np.less_equal(np.dot(matrix, values), rhs).all():
+                is_feasible = True
+            initial_values = values.copy()
+            exp = 1
+            pond = 0
+            counter = 0
+            while not is_feasible:
+                counter += 1
+                if counter == 100:
+                    print("There seems to be a point in the border of the domain in self.inner_points.")
+                #bool = np.less_equal(np.dot(matrix, values), rhs)
+                #dot = np.dot(matrix, values)
+                values = inner_point * (1 - 1 / np.exp2(exp)) + initial_values / np.exp2(exp)
+                if np.less_equal(np.dot(matrix, values), rhs).all():
+                    is_feasible = True
+                    exp += 1
+                else:
+                    exp += 1
+            last_verified = values.copy()
+            for i in range(20 + int(np.log10(max_dimension))):
+                if np.less_equal(np.dot(matrix, values), rhs).all():
+                    last_verified = values
+                    pond = pond + 1 / np.exp2(exp)
+                    exp += 1
+                    values = inner_point * (1 - pond) + initial_values * pond
+                else:
+                    pond = pond - 1 / np.exp2(exp)
+                    exp += 1
+                    values = inner_point * (1 - pond) + initial_values * pond
+            factor = random.random()
+            values = last_verified * factor + (1 - factor) * inner_point
+            assert np.less_equal(np.dot(matrix, values), rhs).all(), "something went wrong..."
+            for i in range(nb):
+                variables[i] = (self.vars_to_vary[i], values[self.vars_to_vary[i]])
+            return variables
 
-            vertices = self.vertices.copy()
-            var_values = np.dot(np.transpose(vertices), weights)
+    def choose_vars_random_vertices_method(self):
+        """
+        Implements the random vertices method described at the beginning of GenerationMode.py.
 
+        Method should be used when the base problem is not simple, which means that it is so large
+        that no exhaustive list of its domain's border can be given. If the problem is simple
+        use choose_vars_random_convex_comb instead.
+
+        Return
+        ------
+        values : (int, float) list
+           the indices of the fixed variables and their new values.
+        """
+        if self.vars_to_vary is None:
+            return []
+        else:
+            vertices = self.master.get_some_vertices()
+            nb_ver = len(vertices)
             nb_vars = len(self.vars_to_vary)
+            nb_conv_comb = nb_vars * 2
+
+            chosen_nb = np.random.randint(nb_conv_comb)
+            chosen_ind = random.sample(vertices, chosen_nb)
+            weights = get_weights_for_convex_comb(chosen_nb)
+
+            comb_ver = chosen_nb * [None]
+
+            for i in range(chosen_nb):
+                comb_ver[i] = vertices[chosen_ind[i]]
+
+            var_values = convex_comb(weights, comb_ver)
             values = nb_vars * [None]
 
             for i in range(nb_vars):
@@ -227,7 +315,55 @@ class lin_opt_pbs:
 
             return values
 
+    def choose_vars_random_convex_comb(self):
+        """
+        Implements the convex combination method used for simple problems,
+        described at the beginning of GenerationMode.py.
+
+        Fixes the variables listed in self.vars_to_fix to random values inside
+        the domain defined by matrix * X <= rhs, where matrix and rhs describe the constraints
+        of self.master.
+
+        Variables are set to random values by convex combinations of vectors
+        in self.master.domain.domain_vertices.
+
+        Return
+        ------
+        values : (int, float) list
+            the indices of the fixed variables and their new values.
+        """
+        vertices = self.generation_mode.vertices
+        if vertices is None:
+            vertices = self.master.get_domain_border()
+
+        if vertices is None:
+            return []
+        else:
+            nb = len(vertices)
+
+            weights = get_weights_for_convex_comb(nb)
+
+            var_values = convex_comb(weights, vertices)
+
+            nb_vars = len(self.vars_to_vary)
+            values = nb_vars * [None]
+
+            for i in range(nb_vars):
+                values[i] = (self.vars_to_vary[i], var_values[self.vars_to_vary[i]])
+
+            return values
+
     def choose_constraints_random_discreet(self):
+        """
+        Method used by GenerationModeMasterSlaveDiscreet to randomly generate the RHS
+        of a single new problem and returns that RHS. (See documentation of GenerationMode.py
+        for more detailed information).
+
+        Return
+        ------
+        rhs : (int, float) list
+           the indices of the fixed constraints and their new values.
+        """
         if self.cons_to_vary is None:
             return []
         else:
@@ -243,6 +379,16 @@ class lin_opt_pbs:
             return new_rhs
 
     def choose_constraints_random_perturbation(self, k):
+        """
+        Method used by GenerationModeClassic to randomly generate the RHS
+        of a single new problem and returns that RHS. (See documentation of GenerationMode.py
+        for more detailed information).
+
+        Return
+        ------
+        rhs : (int, float) list
+           the indices of the fixed constraints and their new values.
+        """
         if self.cons_to_vary is None:
             return []
         else:
@@ -256,6 +402,16 @@ class lin_opt_pbs:
         return new_rhs
 
     def choose_constraints_random_continuous(self):
+        """
+        Method used by GenerationModeMasterSlaveContinuous to randomly generate the RHS
+        of a single new problem and returns that RHS. (See documentation of GenerationMode.py
+        for more detailed information).
+
+        Return
+        ------
+        rhs : (int, float) list
+           the indices of the fixed constraints and their new values.
+        """
         if self.cons_to_vary is None:
             return []
         else:
@@ -288,6 +444,26 @@ class lin_opt_pbs:
         for i in range(nb):
             self.problem.var_set_bounds(values[i][0], values[i][1], values[i][1])
 
+    def compute_random_vertices_of_master(self, nb):
+        """
+        Computes nb random vertices of self.master and stocks them in
+        self.master.domain.some_vertices. Some vertices can possibly occur more
+        then once.
+        """
+        vertices = nb * [None]
+
+        print("Start computing vertices:")
+
+        begin = time()
+        for i in range(nb):
+            present = time()
+            if (present - begin) > 60:
+                print(i)
+                begin = time()
+            vertices[i] = self.master.compute_random_vertex()
+
+        self.master.set_some_vertices(vertices)
+
     def generate_and_solve(self, N):
         """
         Auxiliary function to problem_generator (see problem_generator.problem_generator).
@@ -308,9 +484,13 @@ class lin_opt_pbs:
         sol_list : float list
             list of solutions associated to the newly generated RHS
         """
+        self.generation_mode.prepare_vertices(self, N)
+
         K = len(self.RHS_list)
         sol_list = N * [None]
         self.set_generated_RHS(N * [None])
+
+        print("Start generating problems:")
 
         begin = time()
         for i in range(N):
@@ -362,59 +542,48 @@ def give_name(N, dev, cons_to_vary=None, vars_to_vary=None):
     return name
 
 
-def problem_generator(prob_list, N, dev, cons_to_vary=None, vars_to_vary=None,
-                      factory: Problem_factory = Cplex_Problem_Factory(), save=False, single_file=False,
-                      determine_cons_to_vary=False, find_path=None, save_path=None, name=None,
-                      mode: GenerationMode = GenerationModeClassic(), vertices=None):
+def problem_generator(N, dev, mode: GenerationMode, factory: ProblemFactory, save=False, single_file=False,
+                      find_path=None, save_path=None, name=None):
     """
     The function problem_generator generates an instance of dataset
-    with N random RHS, based on a chosen linear optimization problem,
-    and their N associated solutions
+    with N randomly generated problems and their N associated solutions. Those problems
+    are generated out of a single problem or a list of problems stocked in mode.
 
-    The RHS are truncated : only the non fixed coefficients are kept
+    Actually, the dataset instance does not really contain complete problems, but only their RHS, which are
+    truncated to the constraints that vary from one problem to another, and the values the variables to vary have
+    taken. That is the only information needed to train our neural networks.
 
     Arguments
     ---------
-    prob_list :
-        a list of linear optimization problems. Should be either a single file name (string),
-        a list of file-names (string list) or a list of objects of the class cplex.Cplex (cplex.Cplex list)
     N : int
         giving the number of new problems to generate
     dev : float
-        giving the relative deviation of the noise when generating new problems
-    cons_to_vary : string list
-        a list of names of the constraints of the linear optimisation problems that should be affected when
-        generating new problems. (All linear optimisation problems in prob_list should have an equal
-        amount of constraints with equal names and in the same order.)
-    vars_to_vary : string list
-        a list of names of the variables of the linear optimisation problems that should be fixed randomly
-        when generating new problems. (All linear optimisation problems in prob_list should have an equal
-        amount of variables with equal names and in the same order.)
-    factory : Problem_factory instance (see in problem_interface.py)
+        giving the relative deviation of the gaussian noise applied to the constraints
+        to vary when generating new problems
+    mode : GenerationMode instance
+        see GenerationMode.py for a detailed description of the different modes available
+    factory : Problem_factory instance
+        choose the problem factory that matches the lp solver you are using
     save : bool
         set True if generated problems should be saved in csv file (see dataset.to_csv)
     single_file : bool
         states whether self.RHS and self.solutions are saved in a single file
         or two separate files (see dataset.to_csv)
-    determine_cons_to_vary : bool
-        if True cons_to_vary are determined automatically
     find_path : str
         indicates where problems for generation are saved
     save_path : str
         indicates where csv should be saved if save is True
     name : str
         gives name of file where data is stocked if save is True. If None, name is generated automatically.
-    mode : GenerationMode subclass instance
-        indicates format of problems in prob_list and how new problems are to be generated
+
 
     Return
     ------
     data : dataset instance
         containing the N generated RHS and their N associated solutions
     """
-    cont = extract(prob_list, cons_to_vary, vars_to_vary, factory=factory,
-                   determine_cons_to_vary=determine_cons_to_vary, mode=mode, vertices=vertices, path=find_path)
-    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3], vertices=cont[4], mode=mode)
+    cont = extract(mode, factory, path=find_path)
+    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3], cont[4], mode=mode)
     prob_root.set_deviation(dev)
 
     input_names = cont[5] + cont[6]
@@ -424,16 +593,14 @@ def problem_generator(prob_list, N, dev, cons_to_vary=None, vars_to_vary=None,
 
     if save is True:
         if name is None:
-            name = give_name(N, dev, cons_to_vary, vars_to_vary)
-        new_path = os.path.join("." if save_path is None else save_path, "Generated_problems", prob_list[0])
+            name = give_name(N, dev)
+        new_path = os.path.join("." if save_path is None else save_path, "Generated_problems", cont[7][0])
         data.to_csv(name, new_path, single_file)
 
     return data
 
 
-def problem_generator_y(prob_list, N, dev, cons_to_vary=None, vars_to_vary=None, path=None,
-                        factory: Problem_factory = Cplex_Problem_Factory(), determine_cons_to_vary=False,
-                        mode: GenerationMode = GenerationModeClassic(), vertices=None):
+def problem_generator_y(N, dev, mode: GenerationMode, factory: ProblemFactory, path=None):
     """
     The function problem_generator_y is an adapted version of problem_generator
     which can be used as callback function while training a neural network
@@ -441,9 +608,8 @@ def problem_generator_y(prob_list, N, dev, cons_to_vary=None, vars_to_vary=None,
 
     For a more detailed description, see problem_generator.
     """
-    cont = extract(prob_list, cons_to_vary, vars_to_vary, factory, determine_cons_to_vary=determine_cons_to_vary,
-                   mode=mode, vertices=vertices, path=path)
-    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3], vertices=cont[4], mode=mode)
+    cont = extract(mode, factory, path=path)
+    prob_root = lin_opt_pbs(cont[0], cont[1], cont[2], cont[3], cont[4], mode=mode)
     prob_root.set_deviation(dev)
 
     while True:

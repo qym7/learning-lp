@@ -1,48 +1,70 @@
 import pickle
-import pypoman
 import numpy as np
-from problem_interface import Problem, Problem_factory
-from problem_cplex import Cplex_Problem_Factory
-from Problem_xpress import Xpress_Problem_Factory
+from ProblemTypeInterface import ProblemFactory
 from GenerationMode import GenerationModeClassic, GenerationMode, \
     GenerationModeMasterSlaveContinuous, GenerationModeMasterSlaveDiscreet
 import os
+
+
+class SelectorContent:
+    """
+    Stocks data. Auxiliary class of Selector.
+
+    For further information about stocked data, see documentation of Selector.fill_content.
+    """
+    def __init__(self):
+        self.problem = None
+        self.master = None
+        self.RHS_list = None
+        self.cons_to_vary = None
+        self.vars_to_vary = None
+        self.cons_names = None
+        self.vars_names = None
+        self.name_list = None
+
+    def get_content(self):
+        return self.problem, self.master, self.RHS_list, self.cons_to_vary, self.vars_to_vary, self.cons_names, \
+               self.vars_names, self.name_list
+
+    def fill(self, problem, master, RHS_list, cons_to_vary, vars_to_vary, cons_names, vars_names, name_list):
+        self.problem = problem
+        self.master = master
+        self.RHS_list = RHS_list
+        self.cons_to_vary = cons_to_vary
+        self.vars_to_vary = vars_to_vary
+        self.cons_names = cons_names
+        self.vars_names = vars_names
+        self.name_list = name_list
 
 
 class Selector:
     """
     The class Selector is designed to provide a user-friendly interface for selecting files
     containing linear optimization problems. Furthermore it reads the content of the selected
-    files and converts it to the format required by the class lin_opt_pbs in problem_generator.py
+    files and converts it to the data format required by the class lin_opt_pbs in problem_generator.py
 
     Attributes
     ----------
     prob_list : string list
-        a list of linear optimization problems. Should be a list of file-names (string list).
-    content :
+        a list of names of files containing linear optimisation problems and possibly additional information.
+        content depends on the chose generation mode (see GenerationMode.py for more detailed information).
+    path : str
+        path to files
+    generation_mode : GenerationMode instance
+        (see GenerationMode.py for a detailed description)
+    factory : ProblemFactory instance
+        choose the problem factory that matches the lp solver you are using
+    content : SelectorContent instance
         the content of prob_list in the format required by the class lin_opt_pbs in problem_generator.py.
-    cons_to_vary : string list
-        a list of names of the constraints of the linear optimisation problems that should be affected when
-        generating new problems. (All linear optimisation problems in prob_list should have an equal
-        amount of constraints with equal names and in the same order.)
-    vars_to_vary : string list
-        a list of names of the variables of the linear optimisation problems that should be fixed randomly
-        when generating new problems. (All linear optimisation problems in prob_list should have an equal
-        amount of variables with equal names and in the same order.)
     """
-    def __init__(self, prob_list, factory: Problem_factory, mode: GenerationMode,
-                 path=None, cons_to_vary=None, vars_to_vary=None, vertices=None, determine_cons_to_vary=False):
-        self.prob_list = prob_list
+    def __init__(self, mode: GenerationMode, factory: ProblemFactory, path=None):
+        self.prob_list = mode.get_prob_list()
         self.path = path
+        self.generation_mode = mode
         self.factory = factory
-        self.content = None
-        self.cons_to_vary = cons_to_vary
-        self.vars_to_vary = vars_to_vary
+        self.content = SelectorContent()
         self.cons_names = None
         self.vars_names = None
-        self.vertices = vertices
-        self.determine_cons_to_vary = determine_cons_to_vary
-        self.generation_mode = mode
 
     def get_prob_list(self):
         return self.prob_list
@@ -51,10 +73,10 @@ class Selector:
         self.prob_list = prob_list
 
     def get_content(self):
-        return self.content
+        return self.content.get_content()
 
-    def set_content(self, problem, RHS_list, cons_to_vary, vars_to_vary, vertices, cons_names, vars_names, name_list):
-        self.content = problem, RHS_list, cons_to_vary, vars_to_vary, vertices, cons_names, vars_names, name_list
+    def set_content(self, problem, master, RHS_list, cons_to_vary, vars_to_vary, cons_names, vars_names, name_list):
+        self.content.fill(problem, master, RHS_list, cons_to_vary, vars_to_vary, cons_names, vars_names, name_list)
 
     def give_names(self):
         n = len(self.prob_list)
@@ -66,25 +88,27 @@ class Selector:
     def fill_content(self):
         """
         The method fill_content converts the content of the linear optimization problems in
-        self.prob_list to the format required by the class lin_opt_pbs and saves it in self.content.
+        self.prob_list to the data format required by the class lin_opt_pbs and saves it in self.content.
 
         More precisely the method checks first of all if the content of prob_list is a string list.
         If that is not the case, an error message will occur. If the content of prob_list is a string
         list, but cannot be read by the method (if prob_list contains a list of file names, but some
         of those files do not contain linear optimization problems for example) an exception will be raised.
 
-        If no exception occurs, the content of prob_list will be converted into a tuple
-        containing:
-           - one complete linear optimization problem (see class Problem in problem_interface.py),
+        If no exception occurs, the content of prob_list will be stocked in SelectorContent instance.
+        That SelectorContent should contain:
+           - one complete linear optimization problem (see class Problem in Problem.py),
+           - a master problem if GenerationMode is GenerationModeMasterSlaveDiscreet or
+             GenerationModeMasterSlaveContinuous
            - the list of RHS of all problems given in the format required by
-             Cplex (list of list of tuples (int, float)),
+             the problem_generator.py module (list of list of tuples (int, float)),
            - the indices of the coefficients of the RHS that should be affected
              when generating new problems (int list)
-           - the indices of the variables that should be fixed randomly while
+           - the indices of the variables that should be fixed randomly
              when generating new problems
+           - the names of those constraints in the linear optimisation problems
+           - the names of those variables in the linear optimisation problems
            - the list of names of the problems saved in prob_list (string list)
-
-        This tuple is saved in self.content
 
         Arguments
         ---------
@@ -98,17 +122,28 @@ class Selector:
         try:
             problem = self.factory.read_problem_from_file(os.path.join("." if self.path is None else self.path,
                                                                        self.prob_list[0]))
-            name_list = self.prob_list
-            new_problem, RHS_list, cons_to_vary, self.vars_to_vary, self.vertices = \
-                self.generation_mode.generate_information(self, problem, self.path)
-            vars_to_vary = self.read_vars_to_vary(new_problem)
+            self.content.problem = problem
+            self.generation_mode.generate_information(self, problem, self.path)
+            self.content.name_list = self.prob_list
+            self.content.cons_names = self.cons_names
+            self.content.vars_names = self.vars_names
         except:
             raise Exception("Files do not contain linear optimisation problems.")
 
-        self.set_content(problem, RHS_list, cons_to_vary, vars_to_vary, self.vertices, self.cons_names, self.vars_names,
-                         name_list)
-
     def calculate_cons_to_vary(self, problem):
+        """
+        Determines cons_to_vary if not given manually if more then one problem was given
+        as an input. Method compares the rhs of the given problems and memorizes only the
+        constraints that don't have the same value in each rhs.
+
+        Arguments
+        ---------
+        problem : Problem instance
+
+        Returns
+        -------
+        cons_to_vary : int list
+        """
         nb = len(self.prob_list)
         if nb == 1:
             return None
@@ -132,39 +167,46 @@ class Selector:
         for i in range(len(constraints_range)):
             if constraints_range[i] != 0:
                 cons_to_vary.append(i)
-        self.cons_names = problem.get_constraiint_names(cons_to_vary)
+        self.cons_names = problem.get_constraint_names(cons_to_vary)
 
         return cons_to_vary
 
     def calculate_vertices(self, problem):
-        if self.vertices is None:
-            matrix, rhs = problem.get_matrix()
-            index = len(matrix[0])
+        """
+        Returns the vertices of the domain of a linear optimisation problem.
+        """
+        if self.generation_mode.vertices is None:
+            return problem.compute_vertices_poly()
 
-            identity = - np.identity(index)
-            zeros = np.zeros(index)
+    def read_cons_to_vary(self, problem, cons_to_vary_names):
+        """
+        Returns the indices of the constraints of a given problem whose names match those
+        in a given list of constraint names.
 
-            matrix = np.concatenate((matrix, identity))
-            rhs = np.concatenate((rhs, zeros))
+        Raises an exception when some names are not found.
 
-            vertices = pypoman.compute_polytope_vertices(matrix, rhs)
+        Arguments
+        ---------
+        problem : Problem instance
+        cons_to_vary_names : str list
 
-            return vertices
-
-    def read_cons_to_vary(self, problem):
-        self.cons_names = self.cons_to_vary
+        Returns
+        -------
+        vars_to_vary : int list
+        """
+        self.cons_names = cons_to_vary_names
 
         cons_names = problem.get_constraint_names()
         nb_cons = len(cons_names)
 
-        if self.cons_to_vary is None:
+        if cons_to_vary_names is None:
             return None
         else:
-            nb = len(self.cons_to_vary)
+            nb = len(cons_to_vary_names)
             counter = 0
             cons_to_vary = nb * [None]
             for i in range(nb_cons):
-                if counter < nb and cons_names[i] == self.cons_to_vary[counter]:
+                if counter < nb and cons_names[i] == cons_to_vary_names[counter]:
                     cons_to_vary[counter] = i
                     counter += 1
             if cons_to_vary[-1] is None:
@@ -172,19 +214,34 @@ class Selector:
                                 "the constraint names were given in the wrong order.")
         return cons_to_vary
 
-    def read_vars_to_vary(self, problem):
-        self.vars_names = self.vars_to_vary
+    def read_vars_to_vary(self, problem, vars_to_vary_names):
+        """
+        Returns the indices of the variables of a given problem whose names match those
+        in a given list of variable names.
+
+        Raises an exception when some names are not found.
+
+        Arguments
+        ---------
+        problem : Problem instance
+        vars_to_vary_names : str list
+
+        Returns
+        -------
+        vars_to_vary : int list
+        """
+        self.vars_names = vars_to_vary_names
 
         var_names = problem.get_variable_names()
         nb_vars = len(var_names)
-        if self.vars_to_vary is None:
+        if vars_to_vary_names is None:
             return None
         else:
-            nb = len(self.vars_to_vary)
+            nb = len(vars_to_vary_names)
             counter = 0
             vars_to_vary = nb * [None]
             for i in range(nb_vars):
-                if counter < nb and var_names[i] == self.vars_to_vary[counter]:
+                if counter < nb and var_names[i] == vars_to_vary_names[counter]:
                     vars_to_vary[counter] = i
                     counter += 1
             if vars_to_vary[-1] is None:
@@ -193,13 +250,17 @@ class Selector:
         return vars_to_vary
 
     def generate_information_classic(self, problem, path=None):
+        """
+        Auxiliary method of fill_content.
 
-        if self.cons_to_vary is None and self.determine_cons_to_vary:
+        Is called when self.generation_mode is GenerationModeClassic.
+        (See documentation of GenerationMode.py for more detailed information).
+        """
+        cons_to_vary = self.generation_mode.cons_to_vary
+        if cons_to_vary is None and self.generation_mode.determine_cons_to_vary:
             cons_to_vary = self.calculate_cons_to_vary(problem)
-        elif self.cons_to_vary is not None:
-            cons_to_vary = self.read_cons_to_vary(problem)
-        else:
-            cons_to_vary = self.cons_to_vary
+        elif cons_to_vary is not None:
+            cons_to_vary = self.read_cons_to_vary(problem, cons_to_vary)
 
         nb = len(self.prob_list)
         RHS_list = nb * [None]
@@ -213,10 +274,21 @@ class Selector:
             rhs = format_RHS(constraints, cons_to_vary)
             RHS_list[i] = rhs
 
-        return problem, RHS_list, cons_to_vary, self.vars_to_vary, self.vertices
+        vars_to_vary = self.read_vars_to_vary(problem, self.generation_mode.vars_to_vary)
+
+        self.content.master = problem
+        self.content.RHS_list = RHS_list
+        self.content.cons_to_vary = cons_to_vary
+        self.content.vars_to_vary = vars_to_vary
 
     def generate_information_possible_vals(self, problem, path=None):
+        """
+        Auxiliary method of fill_content.
 
+        Is called when self.generation_mode is GenerationModeMasterSlaveDiscreet
+        or GenerationModeMasterSlaveContinuous.
+        (See documentation of GenerationMode.py for more detailed information).
+        """
         name = self.prob_list[2]
         new_path = os.path.join("." if path is None else path, name)
         sto = open(new_path, "r")
@@ -258,56 +330,43 @@ class Selector:
 
         RHS_list.append([possible_vals.copy(), weights.copy()])
 
-        self.cons_to_vary = cons_to_vary
-        cons_to_vary = self.read_cons_to_vary(problem)
+        cons_to_vary = self.read_cons_to_vary(problem, cons_to_vary)
 
         master = self.factory.read_problem_from_file(os.path.join("." if path is None else path,
-                                                                  self.prob_list[1]))
-        vars_to_vary = master.get_variable_names()
+                                                                  self.prob_list[1]),
+                                                     simple_problem=self.generation_mode.is_simple)
+        vars_to_vary = self.read_vars_to_vary(master, master.get_variable_names())
 
-        vertices = self.calculate_vertices(master)
+        master.get_domain_border(all_vars=True)
 
-        return master, RHS_list, cons_to_vary, vars_to_vary, vertices
+        self.content.master = master
+        self.content.RHS_list = RHS_list
+        self.content.cons_to_vary = cons_to_vary
+        self.content.vars_to_vary = vars_to_vary
 
 
-def extract(prob_list, cons_to_vary=None, vars_to_vary=None, factory: Problem_factory = Cplex_Problem_Factory(),
-            determine_cons_to_vary=False, path=None, mode: GenerationMode = GenerationModeClassic(), vertices=None):
+def extract(mode: GenerationMode, factory: ProblemFactory, path=None):
     """
-    The function extract converts the content of a list of problems given as an argument to
+    The function extract and converts the content stocked in the given GenerationMode instance to
     the format required by the class lin_opt_pbs in problem_generator.py and returns the result.
-
-                    weights = []
-                    possible_vals.append(line_cont[2])
-                    weights.append(line_cont[4])
     (See description of fill_content, method of Selector)
 
     Arguments
     ---------
-    prob_list : string list
-        a list of linear optimization problems. Should be a list of file-names.
-    cons_to_vary : string list
-        a list of names of the constraints of the linear optimisation problems that should be affected when
-        generating new problems. (All linear optimisation problems in prob_list should have an equal
-        amount of constraints with equal names and in the same order.)
-    vars_to_vary : string list
-        a list of names of the variables of the linear optimisation problems that should be fixed randomly
-        when generating new problems. (All linear optimisation problems in prob_list should have an equal
-        amount of variables with equal names and in the same order.)
+
+    mode : GenerationMode instance
+        see GenerationMode.py for a detailed description of the different modes availablr
     factory : Problem_factory instance (see in problem_interface.py)
-    determine_cons_to_vary : bool
-        if True cons_to_vary are determined automatically
+        choose the problem factory that matches the lp solver you are using
     path : str
         path to problem files
-    mode : GenerationMode subclass instance
-        indicates format of problems in prob_list and how new problems are to be generated
 
     returns
     -------
     content :
-        the content of prob_list in the format required by the class lin_opt_pbs in problem_generator.py.
+        the data required by the class lin_opt_pbs (see problem_generator.py)
     """
-    selector = Selector(prob_list, cons_to_vary=cons_to_vary, vars_to_vary=vars_to_vary, factory=factory,
-                        determine_cons_to_vary=determine_cons_to_vary, mode=mode, vertices=vertices, path=path)
+    selector = Selector(mode=mode, factory=factory, path=path)
     selector.fill_content()
     content = selector.get_content()
     return content

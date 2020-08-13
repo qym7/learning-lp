@@ -1,5 +1,5 @@
 from problem_generator import problem_generator
-from Problem_xpress import Xpress_Problem_Factory
+from Problem import Xpress_Problem_Factory
 from dataset import dataset
 from DataProcessor import *
 import numpy as np
