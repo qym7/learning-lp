@@ -34,7 +34,6 @@ def scheduler_LandS_opt_on_model_1_500_1(epoch):
         return 0.0001 / (epoch - 27)
 
 
-
 def scheduler_gbd_opt_on_model_1_500_1(epoch):
     if epoch == 0:
         return 0.05
@@ -48,7 +47,6 @@ def scheduler_gbd_opt_on_model_1_500_1(epoch):
         return 0.000008 / ((epoch / 3) - 15)
 
 
-
 def scheduler_20term_opt_on_model_1_500_1(epoch):
     if epoch == 0:
         return 0.05
@@ -59,6 +57,7 @@ def scheduler_20term_opt_on_model_1_500_1(epoch):
     else:
         return 0.0001 / (epoch - 17)
 
+
 def scheduler_20term_opt_on_model_input_2000_1000_1(epoch):
    if epoch == 0:
        return 0.05
@@ -68,6 +67,36 @@ def scheduler_20term_opt_on_model_input_2000_1000_1(epoch):
        return 0.001
    else:
        return 0.001 / (1 + (epoch - 20)/4)
+
+
+def scheduler_LandS_opt_on_model_input_5times40_1(epoch):
+    if epoch == 0:
+        return 0.05
+    elif epoch <= 10:
+        return 0.005
+    elif epoch <= 25:
+        return 0.001
+    elif epoch <= 35:
+        return 0.0001
+    elif epoch <= 45:
+        return 0.00001
+    elif epoch <= 55:
+        return 0.000001
+    elif epoch <= 65:
+        return 0.0000001
+    else:
+        return 0.00000001
+
+
+def scheduler_ssn_opt_on_model_input_5times40_1(epoch):
+    if epoch <= 20:
+        return 0.01
+    elif epoch <= 40:
+        return 0.001
+    elif epoch <= 60:
+        return 0.0001
+    else:
+        return 0.000001
 
 def schedulerI(epoch):
     if epoch < 5:

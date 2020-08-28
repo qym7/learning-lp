@@ -4,6 +4,7 @@ from NeuralNetwork import NeuralNetwork
 from DataProcessor import *
 from DataAnalyser import *
 from LearningRateSchedulers import *
+from Losses import SafeguardedAbsolutePercentageError
 
 """Run this file to train a neural network."""
 
@@ -23,25 +24,25 @@ if __name__ == '__main__':
 
         """Setting training parameters"""
 
-        depth = 5
-        layers = [20 for i in range(depth)]
+        depth = 10
+        layers = [500 - 50 * i for i in range(depth)]
         epochs = 80
         validation_split = 0.3
 
         """Setting callbacks"""
 
-        callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler_20term_opt_on_model_1_500_1),
+        callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler_ssn_opt_on_model_input_5times40_1),
                      tf.keras.callbacks.ModelCheckpoint(filepath="D:\\repository\\learning-lp\\data\\Model_checkpoints",
                                                         save_weights_only=True, verbose=0)]
         #callback = EscapeLocalMinima(scheduler_LandS_opt_on_model_1_100_1, considered_epochs=3, threshold=4e-3)
 
         """Creating neural network."""
 
-        network = NeuralNetwork(file_name="20term_network_input_2000_1000_1")
+        network = NeuralNetwork(file_name="ssn_network_input_(500 - 50 * layer)_1")
         network.basic_nn(layers)
         network.add_bound_processors([BoundProcessorNormalise()])
         network.add_solution_processors([SolutionProcessorLinearMax()])
-        #network.set_loss(MeanLogarithmicError())
+        network.set_loss(SafeguardedAbsolutePercentageError())
 
         """Training neural network."""
 
